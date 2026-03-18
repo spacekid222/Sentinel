@@ -48,31 +48,46 @@ interface Incident {
   sites?: { name: string }
 }
 
+interface PostOrder {
+  id: string
+  site_id: string
+  title: string
+  content: string
+  category: string
+  order_index: number
+  created_at: string
+}
+
 export default function Home() {
   const [guards, setGuards] = useState<Guard[]>([])
   const [sites, setSites] = useState<Site[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
   const [incidents, setIncidents] = useState<Incident[]>([])
+  const [postOrders, setPostOrders] = useState<PostOrder[]>([])
   const [activeNav, setActiveNav] = useState('dashboard')
   const [loading, setLoading] = useState(true)
+  const [selectedSiteId, setSelectedSiteId] = useState<string>('')
 
   // Add modals
   const [showAddGuard, setShowAddGuard] = useState(false)
   const [showAddSite, setShowAddSite] = useState(false)
   const [showAddShift, setShowAddShift] = useState(false)
   const [showAddIncident, setShowAddIncident] = useState(false)
+  const [showAddPostOrder, setShowAddPostOrder] = useState(false)
 
   // Edit modals
   const [editingGuard, setEditingGuard] = useState<Guard | null>(null)
   const [editingSite, setEditingSite] = useState<Site | null>(null)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [editingIncident, setEditingIncident] = useState<Incident | null>(null)
+  const [editingPostOrder, setEditingPostOrder] = useState<PostOrder | null>(null)
 
-  // Add forms
+  // Forms
   const [guardForm, setGuardForm] = useState({ name: '', email: '', phone: '', license_number: '', license_expiry: '' })
   const [siteForm, setSiteForm] = useState({ name: '', address: '', contact_name: '', contact_phone: '' })
   const [shiftForm, setShiftForm] = useState({ guard_id: '', site_id: '', start_time: '', end_time: '', shift_type: 'day', pay_rate: '', bill_rate: '' })
   const [incidentForm, setIncidentForm] = useState({ title: '', description: '', severity: 'low', site_id: '', guard_id: '' })
+  const [postOrderForm, setPostOrderForm] = useState({ title: '', content: '', category: 'general', site_id: '' })
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -83,20 +98,21 @@ export default function Home() {
 
   async function fetchAll() {
     setLoading(true)
-    const [g, s, sh, inc] = await Promise.all([
+    const [g, s, sh, inc, po] = await Promise.all([
       supabase.from('guards').select('*').order('name'),
       supabase.from('sites').select('*').order('name'),
       supabase.from('shifts').select('*, guards(name), sites(name)').order('start_time'),
-      supabase.from('incidents').select('*, sites(name)').order('created_at', { ascending: false })
+      supabase.from('incidents').select('*, sites(name)').order('created_at', { ascending: false }),
+      supabase.from('post_orders').select('*').order('order_index')
     ])
     if (g.data) setGuards(g.data)
-    if (s.data) setSites(s.data)
+    if (s.data) { setSites(s.data); if (!selectedSiteId && s.data.length > 0) setSelectedSiteId(s.data[0].id) }
     if (sh.data) setShifts(sh.data)
     if (inc.data) setIncidents(inc.data)
+    if (po.data) setPostOrders(po.data)
     setLoading(false)
   }
 
-  // Add functions
   async function addGuard() {
     const { error } = await supabase.from('guards').insert([guardForm])
     if (!error) { setShowAddGuard(false); setGuardForm({ name: '', email: '', phone: '', license_number: '', license_expiry: '' }); fetchAll() }
@@ -113,69 +129,49 @@ export default function Home() {
     const { error } = await supabase.from('incidents').insert([incidentForm])
     if (!error) { setShowAddIncident(false); setIncidentForm({ title: '', description: '', severity: 'low', site_id: '', guard_id: '' }); fetchAll() }
   }
+  async function addPostOrder() {
+    const { error } = await supabase.from('post_orders').insert([{ ...postOrderForm, site_id: selectedSiteId }])
+    if (!error) { setShowAddPostOrder(false); setPostOrderForm({ title: '', content: '', category: 'general', site_id: '' }); fetchAll() }
+  }
 
-  // Edit functions
   async function saveGuard() {
     if (!editingGuard) return
-    const { error } = await supabase.from('guards').update({
-      name: editingGuard.name, email: editingGuard.email, phone: editingGuard.phone,
-      license_number: editingGuard.license_number, license_expiry: editingGuard.license_expiry
-    }).eq('id', editingGuard.id)
-    if (!error) { setEditingGuard(null); fetchAll() }
+    await supabase.from('guards').update({ name: editingGuard.name, email: editingGuard.email, phone: editingGuard.phone, license_number: editingGuard.license_number, license_expiry: editingGuard.license_expiry }).eq('id', editingGuard.id)
+    setEditingGuard(null); fetchAll()
   }
   async function saveSite() {
     if (!editingSite) return
-    const { error } = await supabase.from('sites').update({
-      name: editingSite.name, address: editingSite.address,
-      contact_name: editingSite.contact_name, contact_phone: editingSite.contact_phone
-    }).eq('id', editingSite.id)
-    if (!error) { setEditingSite(null); fetchAll() }
+    await supabase.from('sites').update({ name: editingSite.name, address: editingSite.address, contact_name: editingSite.contact_name, contact_phone: editingSite.contact_phone }).eq('id', editingSite.id)
+    setEditingSite(null); fetchAll()
   }
   async function saveShift() {
     if (!editingShift) return
-    const { error } = await supabase.from('shifts').update({
-      guard_id: editingShift.guard_id, site_id: editingShift.site_id,
-      start_time: editingShift.start_time, end_time: editingShift.end_time,
-      shift_type: editingShift.shift_type, pay_rate: editingShift.pay_rate, bill_rate: editingShift.bill_rate
-    }).eq('id', editingShift.id)
-    if (!error) { setEditingShift(null); fetchAll() }
+    await supabase.from('shifts').update({ guard_id: editingShift.guard_id, site_id: editingShift.site_id, start_time: editingShift.start_time, end_time: editingShift.end_time, shift_type: editingShift.shift_type, pay_rate: editingShift.pay_rate, bill_rate: editingShift.bill_rate }).eq('id', editingShift.id)
+    setEditingShift(null); fetchAll()
   }
   async function saveIncident() {
     if (!editingIncident) return
-    const { error } = await supabase.from('incidents').update({
-      title: editingIncident.title, description: editingIncident.description,
-      severity: editingIncident.severity, status: editingIncident.status
-    }).eq('id', editingIncident.id)
-    if (!error) { setEditingIncident(null); fetchAll() }
+    await supabase.from('incidents').update({ title: editingIncident.title, description: editingIncident.description, severity: editingIncident.severity, status: editingIncident.status }).eq('id', editingIncident.id)
+    setEditingIncident(null); fetchAll()
+  }
+  async function savePostOrder() {
+    if (!editingPostOrder) return
+    await supabase.from('post_orders').update({ title: editingPostOrder.title, content: editingPostOrder.content, category: editingPostOrder.category }).eq('id', editingPostOrder.id)
+    setEditingPostOrder(null); fetchAll()
   }
 
-  // Delete functions
-  async function deleteGuard(id: string) {
-    if (!confirm('Delete this guard?')) return
-    await supabase.from('guards').delete().eq('id', id)
-    fetchAll()
-  }
-  async function deleteSite(id: string) {
-    if (!confirm('Delete this site?')) return
-    await supabase.from('sites').delete().eq('id', id)
-    fetchAll()
-  }
-  async function deleteShift(id: string) {
-    if (!confirm('Delete this shift?')) return
-    await supabase.from('shifts').delete().eq('id', id)
-    fetchAll()
-  }
-  async function deleteIncident(id: string) {
-    if (!confirm('Delete this incident?')) return
-    await supabase.from('incidents').delete().eq('id', id)
-    fetchAll()
-  }
+  async function deleteGuard(id: string) { if (!confirm('Delete this guard?')) return; await supabase.from('guards').delete().eq('id', id); fetchAll() }
+  async function deleteSite(id: string) { if (!confirm('Delete this site?')) return; await supabase.from('sites').delete().eq('id', id); fetchAll() }
+  async function deleteShift(id: string) { if (!confirm('Delete this shift?')) return; await supabase.from('shifts').delete().eq('id', id); fetchAll() }
+  async function deleteIncident(id: string) { if (!confirm('Delete this incident?')) return; await supabase.from('incidents').delete().eq('id', id); fetchAll() }
+  async function deletePostOrder(id: string) { if (!confirm('Delete this post order?')) return; await supabase.from('post_orders').delete().eq('id', id); fetchAll() }
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
     { id: 'schedule', label: 'Schedule', icon: '◫' },
     { id: 'guards', label: 'Guards', icon: '◎' },
     { id: 'sites', label: 'Sites', icon: '◈' },
+    { id: 'postorders', label: 'Post Orders', icon: '☰' },
     { id: 'incidents', label: 'Incidents', icon: '◬' },
   ]
 
@@ -189,6 +185,13 @@ export default function Home() {
     medium: { background: '#fef3c7', color: '#92400e' },
     high:   { background: '#fee2e2', color: '#b91c1c' },
   }
+  const categoryColors: Record<string, { background: string; color: string }> = {
+    general:   { background: '#f0f9ff', color: '#0369a1' },
+    access:    { background: '#fef3c7', color: '#92400e' },
+    emergency: { background: '#fee2e2', color: '#b91c1c' },
+    patrol:    { background: '#f0fdf4', color: '#15803d' },
+    reporting: { background: '#f5f3ff', color: '#6d28d9' },
+  }
 
   const today = new Date()
   const todayStr = today.toDateString()
@@ -201,6 +204,8 @@ export default function Home() {
     return diff <= 30
   })
   const recentIncidents = incidents.slice(0, 5)
+  const selectedSite = sites.find(s => s.id === selectedSiteId)
+  const sitePostOrders = postOrders.filter(po => po.site_id === selectedSiteId)
 
   return (
     <>
@@ -268,10 +273,30 @@ export default function Home() {
         .btn-edit:hover { background: #ede9e3; color: #1c1917; }
         .btn-delete { background: #fee2e2; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #dc2626; cursor: pointer; font-family: 'Sora', sans-serif; font-weight: 500; transition: all 0.15s; }
         .btn-delete:hover { background: #fecaca; }
+        .post-order-layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; height: calc(100vh - 140px); }
+        .site-list { background: #fff; border: 1px solid #f0ede8; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+        .site-list-header { padding: 16px 20px; border-bottom: 1px solid #f5f2ef; font-size: 12px; font-weight: 600; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.5px; }
+        .site-list-item { padding: 14px 20px; cursor: pointer; border-bottom: 1px solid #faf9f7; transition: all 0.15s; }
+        .site-list-item:hover { background: #fafaf9; }
+        .site-list-item.active { background: #fff5f0; border-left: 3px solid #f97316; }
+        .site-list-item-name { font-size: 13.5px; font-weight: 600; color: #1c1917; }
+        .site-list-item-count { font-size: 12px; color: #a8a29e; margin-top: 2px; }
+        .post-orders-panel { background: #fff; border: 1px solid #f0ede8; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+        .post-orders-header { padding: 18px 24px; border-bottom: 1px solid #f5f2ef; display: flex; align-items: center; justify-content: space-between; }
+        .post-orders-header-left { font-size: 16px; font-weight: 700; color: #1c1917; }
+        .post-orders-header-sub { font-size: 12px; color: #a8a29e; margin-top: 2px; }
+        .post-orders-body { flex: 1; overflow: auto; padding: 20px 24px; }
+        .post-order-card { background: #fafaf9; border: 1px solid #f0ede8; border-radius: 10px; padding: 18px 20px; margin-bottom: 14px; transition: all 0.15s; }
+        .post-order-card:hover { border-color: #e8e3de; }
+        .post-order-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .post-order-card-title { font-size: 14px; font-weight: 700; color: #1c1917; }
+        .post-order-card-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.15s; }
+        .post-order-card:hover .post-order-card-actions { opacity: 1; }
+        .post-order-card-content { font-size: 13.5px; color: #44403c; line-height: 1.6; white-space: pre-wrap; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(28,25,23,0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; animation: fadeIn 0.15s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-        .modal-box { background: #fff; border-radius: 16px; padding: 32px; width: 460px; border: 1px solid #f0ede8; box-shadow: 0 20px 60px rgba(28,25,23,0.12); animation: slideUp 0.2s ease; }
+        .modal-box { background: #fff; border-radius: 16px; padding: 32px; width: 520px; border: 1px solid #f0ede8; box-shadow: 0 20px 60px rgba(28,25,23,0.12); animation: slideUp 0.2s ease; }
         .modal-title { font-size: 18px; font-weight: 700; color: #1c1917; letter-spacing: -0.3px; margin-bottom: 6px; }
         .modal-sub { font-size: 13px; color: #a8a29e; margin-bottom: 24px; }
         .field-label { font-size: 12px; font-weight: 600; color: #78716c; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
@@ -320,12 +345,14 @@ export default function Home() {
                 {activeNav === 'guards' && ` · ${guards.length} guards`}
                 {activeNav === 'sites' && ` · ${sites.length} sites`}
                 {activeNav === 'incidents' && ` · ${incidents.length} incidents`}
+                {activeNav === 'postorders' && ` · ${postOrders.length} orders`}
               </span>
             </div>
             {activeNav === 'schedule' && <button className="btn-primary" onClick={() => setShowAddShift(true)}>+ Add Shift</button>}
             {activeNav === 'guards' && <button className="btn-primary" onClick={() => setShowAddGuard(true)}>+ Add Guard</button>}
             {activeNav === 'sites' && <button className="btn-primary" onClick={() => setShowAddSite(true)}>+ Add Site</button>}
             {activeNav === 'incidents' && <button className="btn-primary" onClick={() => setShowAddIncident(true)}>+ Log Incident</button>}
+            {activeNav === 'postorders' && selectedSiteId && <button className="btn-primary" onClick={() => setShowAddPostOrder(true)}>+ Add Order</button>}
           </div>
 
           <div className="content">
@@ -452,7 +479,7 @@ export default function Home() {
                   <table>
                     <thead><tr>{['Guard', 'Site', 'Type', 'Start', 'End', 'Pay Rate', 'Bill Rate', 'Status', ''].map(h => <th key={h}>{h}</th>)}</tr></thead>
                     <tbody>
-                      {shifts.length === 0 && <tr><td colSpan={9}><div className="empty-state"><div className="empty-icon">◫</div><div className="empty-text">No shifts scheduled yet</div><div className="empty-sub">Add guards and sites first</div></div></td></tr>}
+                      {shifts.length === 0 && <tr><td colSpan={9}><div className="empty-state"><div className="empty-icon">◫</div><div className="empty-text">No shifts scheduled yet</div></div></td></tr>}
                       {shifts.map(shift => (
                         <tr key={shift.id}>
                           <td className="td-primary">{shift.guards?.name || '—'}</td>
@@ -520,6 +547,60 @@ export default function Home() {
               </div>
             )}
 
+            {/* POST ORDERS */}
+            {!loading && activeNav === 'postorders' && (
+              <div className="post-order-layout">
+                <div className="site-list">
+                  <div className="site-list-header">Sites</div>
+                  {sites.length === 0 && <div className="empty-state"><div className="empty-text">No sites yet</div></div>}
+                  {sites.map(site => (
+                    <div key={site.id} className={`site-list-item${selectedSiteId === site.id ? ' active' : ''}`} onClick={() => setSelectedSiteId(site.id)}>
+                      <div className="site-list-item-name">{site.name}</div>
+                      <div className="site-list-item-count">{postOrders.filter(po => po.site_id === site.id).length} orders</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="post-orders-panel">
+                  {!selectedSite ? (
+                    <div className="empty-state"><div className="empty-text">Select a site to view post orders</div></div>
+                  ) : (
+                    <>
+                      <div className="post-orders-header">
+                        <div>
+                          <div className="post-orders-header-left">{selectedSite.name}</div>
+                          <div className="post-orders-header-sub">{sitePostOrders.length} post orders · {selectedSite.address || 'No address'}</div>
+                        </div>
+                      </div>
+                      <div className="post-orders-body">
+                        {sitePostOrders.length === 0 && (
+                          <div className="empty-state">
+                            <div className="empty-icon">☰</div>
+                            <div className="empty-text">No post orders for this site</div>
+                            <div className="empty-sub">Click "+ Add Order" to add instructions for guards</div>
+                          </div>
+                        )}
+                        {sitePostOrders.map(po => (
+                          <div key={po.id} className="post-order-card">
+                            <div className="post-order-card-header">
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div className="post-order-card-title">{po.title}</div>
+                                <span className="badge" style={categoryColors[po.category] || { background: '#f5f5f4', color: '#78716c' }}>{po.category}</span>
+                              </div>
+                              <div className="post-order-card-actions">
+                                <button className="btn-edit" onClick={() => setEditingPostOrder(po)}>Edit</button>
+                                <button className="btn-delete" onClick={() => deletePostOrder(po.id)}>Delete</button>
+                              </div>
+                            </div>
+                            <div className="post-order-card-content">{po.content}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* INCIDENTS */}
             {!loading && activeNav === 'incidents' && (
               <div className="table-card">
@@ -557,10 +638,7 @@ export default function Home() {
                 <div className="field-wrap"><div className="field-label">License #</div><input placeholder="LIC-00000" value={guardForm.license_number} onChange={e => setGuardForm({...guardForm, license_number: e.target.value})} /></div>
                 <div className="field-wrap"><div className="field-label">License Expiry</div><input type="date" value={guardForm.license_expiry} onChange={e => setGuardForm({...guardForm, license_expiry: e.target.value})} /></div>
               </div>
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setShowAddGuard(false)}>Cancel</button>
-                <button className="btn-primary" onClick={addGuard}>Add Guard</button>
-              </div>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setShowAddGuard(false)}>Cancel</button><button className="btn-primary" onClick={addGuard}>Add Guard</button></div>
             </div>
           </div>
         )}
@@ -576,10 +654,7 @@ export default function Home() {
                 <div className="field-wrap"><div className="field-label">Contact Name</div><input placeholder="Jane Doe" value={siteForm.contact_name} onChange={e => setSiteForm({...siteForm, contact_name: e.target.value})} /></div>
                 <div className="field-wrap"><div className="field-label">Contact Phone</div><input placeholder="(555) 000-0000" value={siteForm.contact_phone} onChange={e => setSiteForm({...siteForm, contact_phone: e.target.value})} /></div>
               </div>
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setShowAddSite(false)}>Cancel</button>
-                <button className="btn-primary" onClick={addSite}>Add Site</button>
-              </div>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setShowAddSite(false)}>Cancel</button><button className="btn-primary" onClick={addSite}>Add Site</button></div>
             </div>
           </div>
         )}
@@ -616,10 +691,7 @@ export default function Home() {
                 <div className="field-wrap"><div className="field-label">Pay Rate ($/hr)</div><input placeholder="18.00" value={shiftForm.pay_rate} onChange={e => setShiftForm({...shiftForm, pay_rate: e.target.value})} /></div>
                 <div className="field-wrap"><div className="field-label">Bill Rate ($/hr)</div><input placeholder="32.00" value={shiftForm.bill_rate} onChange={e => setShiftForm({...shiftForm, bill_rate: e.target.value})} /></div>
               </div>
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setShowAddShift(false)}>Cancel</button>
-                <button className="btn-primary" onClick={addShift}>Schedule Shift</button>
-              </div>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setShowAddShift(false)}>Cancel</button><button className="btn-primary" onClick={addShift}>Schedule Shift</button></div>
             </div>
           </div>
         )}
@@ -650,10 +722,28 @@ export default function Home() {
                   {guards.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </div>
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setShowAddIncident(false)}>Cancel</button>
-                <button className="btn-primary" onClick={addIncident}>Log Incident</button>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setShowAddIncident(false)}>Cancel</button><button className="btn-primary" onClick={addIncident}>Log Incident</button></div>
+            </div>
+          </div>
+        )}
+
+        {showAddPostOrder && (
+          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAddPostOrder(false)}>
+            <div className="modal-box">
+              <div className="modal-title">Add Post Order</div>
+              <div className="modal-sub">Add instructions for guards at {selectedSite?.name}</div>
+              <div className="field-wrap"><div className="field-label">Title *</div><input placeholder="e.g. Access Control Procedures" value={postOrderForm.title} onChange={e => setPostOrderForm({...postOrderForm, title: e.target.value})} /></div>
+              <div className="field-wrap"><div className="field-label">Category</div>
+                <select value={postOrderForm.category} onChange={e => setPostOrderForm({...postOrderForm, category: e.target.value})}>
+                  <option value="general">General</option>
+                  <option value="access">Access Control</option>
+                  <option value="emergency">Emergency</option>
+                  <option value="patrol">Patrol</option>
+                  <option value="reporting">Reporting</option>
+                </select>
               </div>
+              <div className="field-wrap"><div className="field-label">Instructions *</div><textarea style={{ height: 140, resize: 'vertical' }} placeholder="Enter detailed instructions for guards..." value={postOrderForm.content} onChange={e => setPostOrderForm({...postOrderForm, content: e.target.value})} /></div>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setShowAddPostOrder(false)}>Cancel</button><button className="btn-primary" onClick={addPostOrder}>Add Post Order</button></div>
             </div>
           </div>
         )}
@@ -671,10 +761,7 @@ export default function Home() {
                 <div className="field-wrap"><div className="field-label">License #</div><input value={editingGuard.license_number || ''} onChange={e => setEditingGuard({...editingGuard, license_number: e.target.value})} /></div>
                 <div className="field-wrap"><div className="field-label">License Expiry</div><input type="date" value={editingGuard.license_expiry || ''} onChange={e => setEditingGuard({...editingGuard, license_expiry: e.target.value})} /></div>
               </div>
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setEditingGuard(null)}>Cancel</button>
-                <button className="btn-primary" onClick={saveGuard}>Save Changes</button>
-              </div>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setEditingGuard(null)}>Cancel</button><button className="btn-primary" onClick={saveGuard}>Save Changes</button></div>
             </div>
           </div>
         )}
@@ -690,10 +777,7 @@ export default function Home() {
                 <div className="field-wrap"><div className="field-label">Contact Name</div><input value={editingSite.contact_name || ''} onChange={e => setEditingSite({...editingSite, contact_name: e.target.value})} /></div>
                 <div className="field-wrap"><div className="field-label">Contact Phone</div><input value={editingSite.contact_phone || ''} onChange={e => setEditingSite({...editingSite, contact_phone: e.target.value})} /></div>
               </div>
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setEditingSite(null)}>Cancel</button>
-                <button className="btn-primary" onClick={saveSite}>Save Changes</button>
-              </div>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setEditingSite(null)}>Cancel</button><button className="btn-primary" onClick={saveSite}>Save Changes</button></div>
             </div>
           </div>
         )}
@@ -728,10 +812,7 @@ export default function Home() {
                 <div className="field-wrap"><div className="field-label">Pay Rate</div><input value={editingShift.pay_rate} onChange={e => setEditingShift({...editingShift, pay_rate: parseFloat(e.target.value)})} /></div>
                 <div className="field-wrap"><div className="field-label">Bill Rate</div><input value={editingShift.bill_rate} onChange={e => setEditingShift({...editingShift, bill_rate: parseFloat(e.target.value)})} /></div>
               </div>
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setEditingShift(null)}>Cancel</button>
-                <button className="btn-primary" onClick={saveShift}>Save Changes</button>
-              </div>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setEditingShift(null)}>Cancel</button><button className="btn-primary" onClick={saveShift}>Save Changes</button></div>
             </div>
           </div>
         )}
@@ -755,10 +836,28 @@ export default function Home() {
                   </select>
                 </div>
               </div>
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={() => setEditingIncident(null)}>Cancel</button>
-                <button className="btn-primary" onClick={saveIncident}>Save Changes</button>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setEditingIncident(null)}>Cancel</button><button className="btn-primary" onClick={saveIncident}>Save Changes</button></div>
+            </div>
+          </div>
+        )}
+
+        {editingPostOrder && (
+          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setEditingPostOrder(null)}>
+            <div className="modal-box">
+              <div className="modal-title">Edit Post Order</div>
+              <div className="modal-sub">Update instructions for guards</div>
+              <div className="field-wrap"><div className="field-label">Title *</div><input value={editingPostOrder.title} onChange={e => setEditingPostOrder({...editingPostOrder, title: e.target.value})} /></div>
+              <div className="field-wrap"><div className="field-label">Category</div>
+                <select value={editingPostOrder.category} onChange={e => setEditingPostOrder({...editingPostOrder, category: e.target.value})}>
+                  <option value="general">General</option>
+                  <option value="access">Access Control</option>
+                  <option value="emergency">Emergency</option>
+                  <option value="patrol">Patrol</option>
+                  <option value="reporting">Reporting</option>
+                </select>
               </div>
+              <div className="field-wrap"><div className="field-label">Instructions *</div><textarea style={{ height: 140, resize: 'vertical' }} value={editingPostOrder.content} onChange={e => setEditingPostOrder({...editingPostOrder, content: e.target.value})} /></div>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setEditingPostOrder(null)}>Cancel</button><button className="btn-primary" onClick={savePostOrder}>Save Changes</button></div>
             </div>
           </div>
         )}
