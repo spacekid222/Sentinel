@@ -58,36 +58,51 @@ interface PostOrder {
   created_at: string
 }
 
+interface ActivityReport {
+  id: string
+  shift_id: string
+  guard_id: string
+  site_id: string
+  summary: string
+  observations: string
+  status: string
+  created_at: string
+  guards?: { name: string }
+  sites?: { name: string }
+  shifts?: { start_time: string; end_time: string }
+}
+
 export default function Home() {
   const [guards, setGuards] = useState<Guard[]>([])
   const [sites, setSites] = useState<Site[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [postOrders, setPostOrders] = useState<PostOrder[]>([])
+  const [activityReports, setActivityReports] = useState<ActivityReport[]>([])
   const [activeNav, setActiveNav] = useState('dashboard')
   const [loading, setLoading] = useState(true)
   const [selectedSiteId, setSelectedSiteId] = useState<string>('')
 
-  // Add modals
   const [showAddGuard, setShowAddGuard] = useState(false)
   const [showAddSite, setShowAddSite] = useState(false)
   const [showAddShift, setShowAddShift] = useState(false)
   const [showAddIncident, setShowAddIncident] = useState(false)
   const [showAddPostOrder, setShowAddPostOrder] = useState(false)
+  const [showAddReport, setShowAddReport] = useState(false)
+  const [viewingReport, setViewingReport] = useState<ActivityReport | null>(null)
 
-  // Edit modals
   const [editingGuard, setEditingGuard] = useState<Guard | null>(null)
   const [editingSite, setEditingSite] = useState<Site | null>(null)
   const [editingShift, setEditingShift] = useState<Shift | null>(null)
   const [editingIncident, setEditingIncident] = useState<Incident | null>(null)
   const [editingPostOrder, setEditingPostOrder] = useState<PostOrder | null>(null)
 
-  // Forms
   const [guardForm, setGuardForm] = useState({ name: '', email: '', phone: '', license_number: '', license_expiry: '' })
   const [siteForm, setSiteForm] = useState({ name: '', address: '', contact_name: '', contact_phone: '' })
   const [shiftForm, setShiftForm] = useState({ guard_id: '', site_id: '', start_time: '', end_time: '', shift_type: 'day', pay_rate: '', bill_rate: '' })
   const [incidentForm, setIncidentForm] = useState({ title: '', description: '', severity: 'low', site_id: '', guard_id: '' })
   const [postOrderForm, setPostOrderForm] = useState({ title: '', content: '', category: 'general', site_id: '' })
+  const [reportForm, setReportForm] = useState({ shift_id: '', guard_id: '', site_id: '', summary: '', observations: '' })
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -98,18 +113,20 @@ export default function Home() {
 
   async function fetchAll() {
     setLoading(true)
-    const [g, s, sh, inc, po] = await Promise.all([
+    const [g, s, sh, inc, po, ar] = await Promise.all([
       supabase.from('guards').select('*').order('name'),
       supabase.from('sites').select('*').order('name'),
       supabase.from('shifts').select('*, guards(name), sites(name)').order('start_time'),
       supabase.from('incidents').select('*, sites(name)').order('created_at', { ascending: false }),
-      supabase.from('post_orders').select('*').order('order_index')
+      supabase.from('post_orders').select('*').order('order_index'),
+      supabase.from('activity_reports').select('*, guards(name), sites(name), shifts(start_time, end_time)').order('created_at', { ascending: false })
     ])
     if (g.data) setGuards(g.data)
     if (s.data) { setSites(s.data); if (!selectedSiteId && s.data.length > 0) setSelectedSiteId(s.data[0].id) }
     if (sh.data) setShifts(sh.data)
     if (inc.data) setIncidents(inc.data)
     if (po.data) setPostOrders(po.data)
+    if (ar.data) setActivityReports(ar.data)
     setLoading(false)
   }
 
@@ -132,6 +149,15 @@ export default function Home() {
   async function addPostOrder() {
     const { error } = await supabase.from('post_orders').insert([{ ...postOrderForm, site_id: selectedSiteId }])
     if (!error) { setShowAddPostOrder(false); setPostOrderForm({ title: '', content: '', category: 'general', site_id: '' }); fetchAll() }
+  }
+  async function addReport() {
+    const selectedShift = shifts.find(s => s.id === reportForm.shift_id)
+    const { error } = await supabase.from('activity_reports').insert([{
+      ...reportForm,
+      guard_id: selectedShift?.guard_id || reportForm.guard_id,
+      site_id: selectedShift?.site_id || reportForm.site_id,
+    }])
+    if (!error) { setShowAddReport(false); setReportForm({ shift_id: '', guard_id: '', site_id: '', summary: '', observations: '' }); fetchAll() }
   }
 
   async function saveGuard() {
@@ -165,6 +191,7 @@ export default function Home() {
   async function deleteShift(id: string) { if (!confirm('Delete this shift?')) return; await supabase.from('shifts').delete().eq('id', id); fetchAll() }
   async function deleteIncident(id: string) { if (!confirm('Delete this incident?')) return; await supabase.from('incidents').delete().eq('id', id); fetchAll() }
   async function deletePostOrder(id: string) { if (!confirm('Delete this post order?')) return; await supabase.from('post_orders').delete().eq('id', id); fetchAll() }
+  async function deleteReport(id: string) { if (!confirm('Delete this report?')) return; await supabase.from('activity_reports').delete().eq('id', id); fetchAll() }
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
@@ -172,6 +199,7 @@ export default function Home() {
     { id: 'guards', label: 'Guards', icon: '◎' },
     { id: 'sites', label: 'Sites', icon: '◈' },
     { id: 'postorders', label: 'Post Orders', icon: '☰' },
+    { id: 'reports', label: 'Activity Reports', icon: '◉' },
     { id: 'incidents', label: 'Incidents', icon: '◬' },
   ]
 
@@ -220,7 +248,7 @@ export default function Home() {
         .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, #f97316, #ea580c); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 2px 8px rgba(249,115,22,0.35); }
         .logo-text { font-size: 17px; font-weight: 700; color: #1c1917; letter-spacing: -0.3px; }
         .logo-sub { font-size: 11px; color: #a8a29e; margin-top: 2px; font-weight: 400; letter-spacing: 0.3px; text-transform: uppercase; }
-        .sidebar-nav { padding: 16px 12px; flex: 1; }
+        .sidebar-nav { padding: 16px 12px; flex: 1; overflow-y: auto; }
         .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-size: 13.5px; font-weight: 500; color: #78716c; transition: all 0.15s ease; margin-bottom: 2px; border: none; background: transparent; width: 100%; text-align: left; font-family: 'Sora', sans-serif; }
         .nav-item:hover { background: #fafaf9; color: #1c1917; }
         .nav-item.active { background: #fff5f0; color: #ea580c; font-weight: 600; }
@@ -273,6 +301,8 @@ export default function Home() {
         .btn-edit:hover { background: #ede9e3; color: #1c1917; }
         .btn-delete { background: #fee2e2; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #dc2626; cursor: pointer; font-family: 'Sora', sans-serif; font-weight: 500; transition: all 0.15s; }
         .btn-delete:hover { background: #fecaca; }
+        .btn-view { background: #eff6ff; border: none; border-radius: 6px; padding: 5px 10px; font-size: 12px; color: #2563eb; cursor: pointer; font-family: 'Sora', sans-serif; font-weight: 500; transition: all 0.15s; }
+        .btn-view:hover { background: #dbeafe; }
         .post-order-layout { display: grid; grid-template-columns: 260px 1fr; gap: 24px; height: calc(100vh - 140px); }
         .site-list { background: #fff; border: 1px solid #f0ede8; border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
         .site-list-header { padding: 16px 20px; border-bottom: 1px solid #f5f2ef; font-size: 12px; font-weight: 600; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -293,6 +323,15 @@ export default function Home() {
         .post-order-card-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.15s; }
         .post-order-card:hover .post-order-card-actions { opacity: 1; }
         .post-order-card-content { font-size: 13.5px; color: #44403c; line-height: 1.6; white-space: pre-wrap; }
+        .report-view { background: #fff; border: 1px solid #f0ede8; border-radius: 14px; padding: 32px; max-width: 680px; }
+        .report-view-header { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #f5f2ef; }
+        .report-view-title { font-size: 18px; font-weight: 700; color: #1c1917; margin-bottom: 8px; }
+        .report-view-meta { display: flex; gap: 16px; flex-wrap: wrap; }
+        .report-view-meta-item { font-size: 12px; color: #a8a29e; }
+        .report-view-meta-item strong { color: #78716c; }
+        .report-section { margin-bottom: 20px; }
+        .report-section-label { font-size: 11px; font-weight: 600; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .report-section-content { font-size: 14px; color: #44403c; line-height: 1.7; white-space: pre-wrap; background: #fafaf9; border: 1px solid #f0ede8; border-radius: 8px; padding: 14px 16px; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(28,25,23,0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; animation: fadeIn 0.15s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -316,9 +355,7 @@ export default function Home() {
           <div className="sidebar-logo">
             <div className="logo-mark">
               <div className="logo-icon">⚡</div>
-              <div>
-                <div className="logo-text">Sentinel</div>
-              </div>
+              <div><div className="logo-text">Sentinel</div></div>
             </div>
             <div className="logo-sub">Security Management</div>
           </div>
@@ -346,6 +383,7 @@ export default function Home() {
                 {activeNav === 'sites' && ` · ${sites.length} sites`}
                 {activeNav === 'incidents' && ` · ${incidents.length} incidents`}
                 {activeNav === 'postorders' && ` · ${postOrders.length} orders`}
+                {activeNav === 'reports' && ` · ${activityReports.length} reports`}
               </span>
             </div>
             {activeNav === 'schedule' && <button className="btn-primary" onClick={() => setShowAddShift(true)}>+ Add Shift</button>}
@@ -353,6 +391,7 @@ export default function Home() {
             {activeNav === 'sites' && <button className="btn-primary" onClick={() => setShowAddSite(true)}>+ Add Site</button>}
             {activeNav === 'incidents' && <button className="btn-primary" onClick={() => setShowAddIncident(true)}>+ Log Incident</button>}
             {activeNav === 'postorders' && selectedSiteId && <button className="btn-primary" onClick={() => setShowAddPostOrder(true)}>+ Add Order</button>}
+            {activeNav === 'reports' && <button className="btn-primary" onClick={() => setShowAddReport(true)}>+ Submit Report</button>}
           </div>
 
           <div className="content">
@@ -390,7 +429,7 @@ export default function Home() {
                       <div className="alert-count">{todayShifts.length} scheduled</div>
                     </div>
                     {todayShifts.length === 0 ? (
-                      <div className="empty-state"><div className="empty-icon">◫</div><div className="empty-text">No shifts today</div><div className="empty-sub">Nothing scheduled for today</div></div>
+                      <div className="empty-state"><div className="empty-icon">◫</div><div className="empty-text">No shifts today</div></div>
                     ) : todayShifts.map(shift => (
                       <div key={shift.id} className="alert-item">
                         <div className="alert-dot" style={{ background: shift.shift_type === 'night' ? '#7c3aed' : '#f97316' }} />
@@ -451,9 +490,9 @@ export default function Home() {
                         { label: 'Total shifts scheduled', value: shifts.length },
                         { label: 'Day shifts', value: shifts.filter(s => s.shift_type === 'day').length },
                         { label: 'Night shifts', value: shifts.filter(s => s.shift_type === 'night').length },
-                        { label: 'Swing shifts', value: shifts.filter(s => s.shift_type === 'swing').length },
                         { label: 'Total incidents', value: incidents.length },
-                        { label: 'High severity', value: incidents.filter(i => i.severity === 'high').length },
+                        { label: 'Activity reports', value: activityReports.length },
+                        { label: 'High severity incidents', value: incidents.filter(i => i.severity === 'high').length },
                       ].map(row => (
                         <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '11px 20px', borderBottom: '1px solid #faf9f7' }}>
                           <span style={{ fontSize: 13.5, color: '#78716c' }}>{row.label}</span>
@@ -573,11 +612,7 @@ export default function Home() {
                       </div>
                       <div className="post-orders-body">
                         {sitePostOrders.length === 0 && (
-                          <div className="empty-state">
-                            <div className="empty-icon">☰</div>
-                            <div className="empty-text">No post orders for this site</div>
-                            <div className="empty-sub">Click "+ Add Order" to add instructions for guards</div>
-                          </div>
+                          <div className="empty-state"><div className="empty-icon">☰</div><div className="empty-text">No post orders for this site</div><div className="empty-sub">Click "+ Add Order" to add instructions for guards</div></div>
                         )}
                         {sitePostOrders.map(po => (
                           <div key={po.id} className="post-order-card">
@@ -598,6 +633,45 @@ export default function Home() {
                     </>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ACTIVITY REPORTS */}
+            {!loading && activeNav === 'reports' && (
+              <div className="table-card">
+                <table>
+                  <thead><tr>{['Guard', 'Site', 'Shift', 'Summary', 'Submitted', ''].map(h => <th key={h}>{h}</th>)}</tr></thead>
+                  <tbody>
+                    {activityReports.length === 0 && (
+                      <tr><td colSpan={6}>
+                        <div className="empty-state">
+                          <div className="empty-icon">◉</div>
+                          <div className="empty-text">No activity reports yet</div>
+                          <div className="empty-sub">Guards submit reports at the end of each shift</div>
+                        </div>
+                      </td></tr>
+                    )}
+                    {activityReports.map(report => (
+                      <tr key={report.id}>
+                        <td className="td-primary">{report.guards?.name || '—'}</td>
+                        <td>{report.sites?.name || '—'}</td>
+                        <td className="td-mono">
+                          {report.shifts ? `${new Date(report.shifts.start_time).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : '—'}
+                        </td>
+                        <td style={{ maxWidth: 280 }}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13.5, color: '#44403c' }}>{report.summary}</div>
+                        </td>
+                        <td className="td-mono">{new Date(report.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                        <td>
+                          <div className="row-actions">
+                            <button className="btn-view" onClick={() => setViewingReport(report)}>View</button>
+                            <button className="btn-delete" onClick={() => deleteReport(report.id)}>Delete</button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
 
@@ -744,6 +818,60 @@ export default function Home() {
               </div>
               <div className="field-wrap"><div className="field-label">Instructions *</div><textarea style={{ height: 140, resize: 'vertical' }} placeholder="Enter detailed instructions for guards..." value={postOrderForm.content} onChange={e => setPostOrderForm({...postOrderForm, content: e.target.value})} /></div>
               <div className="modal-actions"><button className="btn-secondary" onClick={() => setShowAddPostOrder(false)}>Cancel</button><button className="btn-primary" onClick={addPostOrder}>Add Post Order</button></div>
+            </div>
+          </div>
+        )}
+
+        {showAddReport && (
+          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAddReport(false)}>
+            <div className="modal-box">
+              <div className="modal-title">Submit Activity Report</div>
+              <div className="modal-sub">End of shift report — summarize what happened</div>
+              <div className="field-wrap"><div className="field-label">Shift *</div>
+                <select value={reportForm.shift_id} onChange={e => setReportForm({...reportForm, shift_id: e.target.value})}>
+                  <option value="">Select shift</option>
+                  {shifts.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.guards?.name} — {s.sites?.name} ({new Date(s.start_time).toLocaleDateString([], { month: 'short', day: 'numeric' })})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field-wrap"><div className="field-label">Activity Summary *</div>
+                <textarea style={{ height: 100, resize: 'vertical' }} placeholder="Describe all activity during the shift. Include patrols completed, visitors, any notable events..." value={reportForm.summary} onChange={e => setReportForm({...reportForm, summary: e.target.value})} />
+              </div>
+              <div className="field-wrap"><div className="field-label">Additional Observations</div>
+                <textarea style={{ height: 80, resize: 'vertical' }} placeholder="Any other observations, maintenance issues, concerns..." value={reportForm.observations} onChange={e => setReportForm({...reportForm, observations: e.target.value})} />
+              </div>
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setShowAddReport(false)}>Cancel</button><button className="btn-primary" onClick={addReport}>Submit Report</button></div>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW REPORT MODAL */}
+        {viewingReport && (
+          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setViewingReport(null)}>
+            <div className="modal-box" style={{ width: 600 }}>
+              <div className="modal-title">Activity Report</div>
+              <div style={{ display: 'flex', gap: 20, marginBottom: 24, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 12, color: '#a8a29e' }}>Guard: <strong style={{ color: '#78716c' }}>{viewingReport.guards?.name || '—'}</strong></div>
+                <div style={{ fontSize: 12, color: '#a8a29e' }}>Site: <strong style={{ color: '#78716c' }}>{viewingReport.sites?.name || '—'}</strong></div>
+                <div style={{ fontSize: 12, color: '#a8a29e' }}>Submitted: <strong style={{ color: '#78716c' }}>{new Date(viewingReport.created_at).toLocaleString()}</strong></div>
+                {viewingReport.shifts && (
+                  <div style={{ fontSize: 12, color: '#a8a29e' }}>Shift: <strong style={{ color: '#78716c' }}>{new Date(viewingReport.shifts.start_time).toLocaleDateString()} {new Date(viewingReport.shifts.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(viewingReport.shifts.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong></div>
+                )}
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Activity Summary</div>
+                <div style={{ fontSize: 14, color: '#44403c', lineHeight: 1.7, whiteSpace: 'pre-wrap', background: '#fafaf9', border: '1px solid #f0ede8', borderRadius: 8, padding: '14px 16px' }}>{viewingReport.summary}</div>
+              </div>
+              {viewingReport.observations && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Additional Observations</div>
+                  <div style={{ fontSize: 14, color: '#44403c', lineHeight: 1.7, whiteSpace: 'pre-wrap', background: '#fafaf9', border: '1px solid #f0ede8', borderRadius: 8, padding: '14px 16px' }}>{viewingReport.observations}</div>
+                </div>
+              )}
+              <div className="modal-actions"><button className="btn-secondary" onClick={() => setViewingReport(null)}>Close</button></div>
             </div>
           </div>
         )}
