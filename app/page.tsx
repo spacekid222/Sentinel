@@ -83,6 +83,15 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [selectedSiteId, setSelectedSiteId] = useState<string>('')
 
+  // Billing filters
+  const [billingStart, setBillingStart] = useState(() => {
+    const d = new Date()
+    d.setDate(1)
+    return d.toISOString().slice(0, 10)
+  })
+  const [billingEnd, setBillingEnd] = useState(() => new Date().toISOString().slice(0, 10))
+  const [billingSiteFilter, setBillingSiteFilter] = useState('all')
+
   const [showAddGuard, setShowAddGuard] = useState(false)
   const [showAddSite, setShowAddSite] = useState(false)
   const [showAddShift, setShowAddShift] = useState(false)
@@ -193,6 +202,38 @@ export default function Home() {
   async function deletePostOrder(id: string) { if (!confirm('Delete this post order?')) return; await supabase.from('post_orders').delete().eq('id', id); fetchAll() }
   async function deleteReport(id: string) { if (!confirm('Delete this report?')) return; await supabase.from('activity_reports').delete().eq('id', id); fetchAll() }
 
+  // Billing calculations
+  const billingShifts = shifts.filter(shift => {
+    const shiftDate = new Date(shift.start_time)
+    const start = new Date(billingStart)
+    const end = new Date(billingEnd)
+    end.setHours(23, 59, 59)
+    const siteMatch = billingSiteFilter === 'all' || shift.site_id === billingSiteFilter
+    return shiftDate >= start && shiftDate <= end && siteMatch
+  })
+
+  const billingBySite = sites.map(site => {
+    const siteShifts = billingShifts.filter(s => s.site_id === site.id)
+    const totalHours = siteShifts.reduce((acc, s) => {
+      const hrs = (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / (1000 * 60 * 60)
+      return acc + hrs
+    }, 0)
+    const totalBillable = siteShifts.reduce((acc, s) => {
+      const hrs = (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / (1000 * 60 * 60)
+      return acc + (hrs * s.bill_rate)
+    }, 0)
+    const totalPayroll = siteShifts.reduce((acc, s) => {
+      const hrs = (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / (1000 * 60 * 60)
+      return acc + (hrs * s.pay_rate)
+    }, 0)
+    return { site, shifts: siteShifts, totalHours, totalBillable, totalPayroll, margin: totalBillable - totalPayroll }
+  }).filter(row => row.shifts.length > 0)
+
+  const grandTotalBillable = billingBySite.reduce((acc, r) => acc + r.totalBillable, 0)
+  const grandTotalPayroll = billingBySite.reduce((acc, r) => acc + r.totalPayroll, 0)
+  const grandTotalHours = billingBySite.reduce((acc, r) => acc + r.totalHours, 0)
+  const grandMargin = grandTotalBillable - grandTotalPayroll
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '⊞' },
     { id: 'schedule', label: 'Schedule', icon: '◫' },
@@ -201,6 +242,7 @@ export default function Home() {
     { id: 'postorders', label: 'Post Orders', icon: '☰' },
     { id: 'reports', label: 'Activity Reports', icon: '◉' },
     { id: 'incidents', label: 'Incidents', icon: '◬' },
+    { id: 'billing', label: 'Billing', icon: '◇' },
   ]
 
   const shiftColors: Record<string, { background: string; color: string }> = {
@@ -270,6 +312,8 @@ export default function Home() {
         .stat-card.orange .stat-value { color: #ea580c; }
         .stat-card.red { border-color: #fecaca; background: #fff5f5; }
         .stat-card.red .stat-value { color: #dc2626; }
+        .stat-card.green { border-color: #bbf7d0; background: #f0fdf4; }
+        .stat-card.green .stat-value { color: #15803d; }
         .table-card { background: #fff; border: 1px solid #f0ede8; border-radius: 14px; overflow: hidden; }
         table { width: 100%; border-collapse: collapse; }
         thead tr { border-bottom: 1px solid #f5f2ef; }
@@ -280,6 +324,8 @@ export default function Home() {
         .td-primary { font-weight: 600; color: #1c1917; }
         .td-muted { color: #a8a29e; font-size: 13px; }
         .td-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #78716c; }
+        .td-money { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: #1c1917; }
+        .td-green { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: #15803d; }
         .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 600; }
         .empty-state { text-align: center; padding: 48px 20px; }
         .empty-icon { font-size: 28px; margin-bottom: 10px; opacity: 0.3; }
@@ -323,15 +369,28 @@ export default function Home() {
         .post-order-card-actions { display: flex; gap: 6px; opacity: 0; transition: opacity 0.15s; }
         .post-order-card:hover .post-order-card-actions { opacity: 1; }
         .post-order-card-content { font-size: 13.5px; color: #44403c; line-height: 1.6; white-space: pre-wrap; }
-        .report-view { background: #fff; border: 1px solid #f0ede8; border-radius: 14px; padding: 32px; max-width: 680px; }
-        .report-view-header { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #f5f2ef; }
-        .report-view-title { font-size: 18px; font-weight: 700; color: #1c1917; margin-bottom: 8px; }
-        .report-view-meta { display: flex; gap: 16px; flex-wrap: wrap; }
-        .report-view-meta-item { font-size: 12px; color: #a8a29e; }
-        .report-view-meta-item strong { color: #78716c; }
-        .report-section { margin-bottom: 20px; }
-        .report-section-label { font-size: 11px; font-weight: 600; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-        .report-section-content { font-size: 14px; color: #44403c; line-height: 1.7; white-space: pre-wrap; background: #fafaf9; border: 1px solid #f0ede8; border-radius: 8px; padding: 14px 16px; }
+        .billing-filters { background: #fff; border: 1px solid #f0ede8; border-radius: 12px; padding: 20px 24px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .filter-label { font-size: 12px; font-weight: 600; color: #78716c; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+        .filter-field { display: flex; flex-direction: column; }
+        .filter-input { background: #fafaf9; border: 1px solid #e8e3de; border-radius: 8px; padding: 8px 12px; color: #1c1917; font-size: 13px; font-family: 'Sora', sans-serif; outline: none; }
+        .filter-input:focus { border-color: #f97316; }
+        .billing-totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .billing-site-row { background: #fff; border: 1px solid #f0ede8; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+        .billing-site-header { padding: 16px 20px; background: #fafaf9; border-bottom: 1px solid #f0ede8; display: flex; align-items: center; justify-content: space-between; }
+        .billing-site-name { font-size: 15px; font-weight: 700; color: #1c1917; }
+        .billing-site-meta { font-size: 12px; color: #a8a29e; margin-top: 2px; }
+        .billing-site-totals { display: flex; gap: 32px; }
+        .billing-site-total-item { text-align: right; }
+        .billing-site-total-label { font-size: 11px; color: #a8a29e; text-transform: uppercase; letter-spacing: 0.4px; }
+        .billing-site-total-value { font-size: 16px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: #1c1917; margin-top: 2px; }
+        .billing-site-total-value.green { color: #15803d; }
+        .billing-grand-total { background: #1c1917; border-radius: 12px; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; margin-top: 24px; }
+        .billing-grand-label { font-size: 14px; font-weight: 600; color: #a8a29e; }
+        .billing-grand-values { display: flex; gap: 40px; }
+        .billing-grand-item { text-align: right; }
+        .billing-grand-item-label { font-size: 11px; color: #78716c; text-transform: uppercase; letter-spacing: 0.4px; }
+        .billing-grand-item-value { font-size: 20px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: #fff; margin-top: 2px; }
+        .billing-grand-item-value.green { color: #4ade80; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(28,25,23,0.4); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 100; animation: fadeIn 0.15s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -643,35 +702,141 @@ export default function Home() {
                   <thead><tr>{['Guard', 'Site', 'Shift', 'Summary', 'Submitted', ''].map(h => <th key={h}>{h}</th>)}</tr></thead>
                   <tbody>
                     {activityReports.length === 0 && (
-                      <tr><td colSpan={6}>
-                        <div className="empty-state">
-                          <div className="empty-icon">◉</div>
-                          <div className="empty-text">No activity reports yet</div>
-                          <div className="empty-sub">Guards submit reports at the end of each shift</div>
-                        </div>
-                      </td></tr>
+                      <tr><td colSpan={6}><div className="empty-state"><div className="empty-icon">◉</div><div className="empty-text">No activity reports yet</div><div className="empty-sub">Guards submit reports at the end of each shift</div></div></td></tr>
                     )}
                     {activityReports.map(report => (
                       <tr key={report.id}>
                         <td className="td-primary">{report.guards?.name || '—'}</td>
                         <td>{report.sites?.name || '—'}</td>
-                        <td className="td-mono">
-                          {report.shifts ? `${new Date(report.shifts.start_time).toLocaleDateString([], { month: 'short', day: 'numeric' })}` : '—'}
-                        </td>
-                        <td style={{ maxWidth: 280 }}>
-                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13.5, color: '#44403c' }}>{report.summary}</div>
-                        </td>
+                        <td className="td-mono">{report.shifts ? new Date(report.shifts.start_time).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '—'}</td>
+                        <td style={{ maxWidth: 280 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13.5, color: '#44403c' }}>{report.summary}</div></td>
                         <td className="td-mono">{new Date(report.created_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                        <td>
-                          <div className="row-actions">
-                            <button className="btn-view" onClick={() => setViewingReport(report)}>View</button>
-                            <button className="btn-delete" onClick={() => deleteReport(report.id)}>Delete</button>
-                          </div>
-                        </td>
+                        <td><div className="row-actions"><button className="btn-view" onClick={() => setViewingReport(report)}>View</button><button className="btn-delete" onClick={() => deleteReport(report.id)}>Delete</button></div></td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* BILLING */}
+            {!loading && activeNav === 'billing' && (
+              <div>
+                <div className="billing-filters">
+                  <div className="filter-field">
+                    <div className="filter-label">From</div>
+                    <input type="date" className="filter-input" value={billingStart} onChange={e => setBillingStart(e.target.value)} />
+                  </div>
+                  <div className="filter-field">
+                    <div className="filter-label">To</div>
+                    <input type="date" className="filter-input" value={billingEnd} onChange={e => setBillingEnd(e.target.value)} />
+                  </div>
+                  <div className="filter-field">
+                    <div className="filter-label">Site</div>
+                    <select className="filter-input" value={billingSiteFilter} onChange={e => setBillingSiteFilter(e.target.value)}>
+                      <option value="all">All Sites</option>
+                      {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                    <div style={{ fontSize: 12, color: '#a8a29e', marginBottom: 4 }}>{billingShifts.length} shifts in range</div>
+                    <div style={{ fontSize: 12, color: '#a8a29e' }}>{grandTotalHours.toFixed(1)} total hours</div>
+                  </div>
+                </div>
+
+                <div className="billing-totals">
+                  <div className="stat-card">
+                    <div className="stat-label">Total Billable</div>
+                    <div className="stat-value" style={{ fontSize: 22 }}>${grandTotalBillable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <div className="stat-sub">Client invoices</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Total Payroll</div>
+                    <div className="stat-value" style={{ fontSize: 22 }}>${grandTotalPayroll.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <div className="stat-sub">Guard wages</div>
+                  </div>
+                  <div className="stat-card green">
+                    <div className="stat-label">Gross Margin</div>
+                    <div className="stat-value" style={{ fontSize: 22 }}>${grandMargin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <div className="stat-sub">{grandTotalBillable > 0 ? ((grandMargin / grandTotalBillable) * 100).toFixed(1) : 0}% margin</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-label">Total Hours</div>
+                    <div className="stat-value" style={{ fontSize: 22 }}>{grandTotalHours.toFixed(1)}</div>
+                    <div className="stat-sub">Across {billingBySite.length} sites</div>
+                  </div>
+                </div>
+
+                {billingBySite.length === 0 ? (
+                  <div className="table-card"><div className="empty-state"><div className="empty-icon">◇</div><div className="empty-text">No shifts in this date range</div><div className="empty-sub">Adjust the filters above</div></div></div>
+                ) : billingBySite.map(row => (
+                  <div key={row.site.id} className="billing-site-row">
+                    <div className="billing-site-header">
+                      <div>
+                        <div className="billing-site-name">{row.site.name}</div>
+                        <div className="billing-site-meta">{row.shifts.length} shifts · {row.totalHours.toFixed(1)} hours · {row.site.contact_name || 'No contact'}</div>
+                      </div>
+                      <div className="billing-site-totals">
+                        <div className="billing-site-total-item">
+                          <div className="billing-site-total-label">Billable</div>
+                          <div className="billing-site-total-value">${row.totalBillable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        </div>
+                        <div className="billing-site-total-item">
+                          <div className="billing-site-total-label">Payroll</div>
+                          <div className="billing-site-total-value">${row.totalPayroll.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        </div>
+                        <div className="billing-site-total-item">
+                          <div className="billing-site-total-label">Margin</div>
+                          <div className="billing-site-total-value green">${row.margin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <table>
+                      <thead><tr>{['Guard', 'Date', 'Type', 'Hours', 'Bill Rate', 'Billable', 'Pay Rate', 'Payroll'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+                      <tbody>
+                        {row.shifts.map(shift => {
+                          const hrs = (new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime()) / (1000 * 60 * 60)
+                          return (
+                            <tr key={shift.id}>
+                              <td className="td-primary">{shift.guards?.name || '—'}</td>
+                              <td className="td-mono">{new Date(shift.start_time).toLocaleDateString([], { month: 'short', day: 'numeric' })}</td>
+                              <td><span className="badge" style={shiftColors[shift.shift_type]}>{shift.shift_type}</span></td>
+                              <td className="td-mono">{hrs.toFixed(1)}h</td>
+                              <td className="td-mono">${shift.bill_rate}/hr</td>
+                              <td className="td-money">${(hrs * shift.bill_rate).toFixed(2)}</td>
+                              <td className="td-mono">${shift.pay_rate}/hr</td>
+                              <td className="td-mono">${(hrs * shift.pay_rate).toFixed(2)}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+
+                {billingBySite.length > 0 && (
+                  <div className="billing-grand-total">
+                    <div className="billing-grand-label">Grand Total · {new Date(billingStart).toLocaleDateString([], { month: 'short', day: 'numeric' })} – {new Date(billingEnd).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                    <div className="billing-grand-values">
+                      <div className="billing-grand-item">
+                        <div className="billing-grand-item-label">Hours</div>
+                        <div className="billing-grand-item-value">{grandTotalHours.toFixed(1)}</div>
+                      </div>
+                      <div className="billing-grand-item">
+                        <div className="billing-grand-item-label">Payroll</div>
+                        <div className="billing-grand-item-value">${grandTotalPayroll.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                      <div className="billing-grand-item">
+                        <div className="billing-grand-item-label">Billable</div>
+                        <div className="billing-grand-item-value">${grandTotalBillable.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                      <div className="billing-grand-item">
+                        <div className="billing-grand-item-label">Margin</div>
+                        <div className="billing-grand-item-value green">${grandMargin.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -838,7 +1003,7 @@ export default function Home() {
                 </select>
               </div>
               <div className="field-wrap"><div className="field-label">Activity Summary *</div>
-                <textarea style={{ height: 100, resize: 'vertical' }} placeholder="Describe all activity during the shift. Include patrols completed, visitors, any notable events..." value={reportForm.summary} onChange={e => setReportForm({...reportForm, summary: e.target.value})} />
+                <textarea style={{ height: 100, resize: 'vertical' }} placeholder="Describe all activity during the shift..." value={reportForm.summary} onChange={e => setReportForm({...reportForm, summary: e.target.value})} />
               </div>
               <div className="field-wrap"><div className="field-label">Additional Observations</div>
                 <textarea style={{ height: 80, resize: 'vertical' }} placeholder="Any other observations, maintenance issues, concerns..." value={reportForm.observations} onChange={e => setReportForm({...reportForm, observations: e.target.value})} />
@@ -848,7 +1013,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* VIEW REPORT MODAL */}
         {viewingReport && (
           <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setViewingReport(null)}>
             <div className="modal-box" style={{ width: 600 }}>
@@ -857,9 +1021,6 @@ export default function Home() {
                 <div style={{ fontSize: 12, color: '#a8a29e' }}>Guard: <strong style={{ color: '#78716c' }}>{viewingReport.guards?.name || '—'}</strong></div>
                 <div style={{ fontSize: 12, color: '#a8a29e' }}>Site: <strong style={{ color: '#78716c' }}>{viewingReport.sites?.name || '—'}</strong></div>
                 <div style={{ fontSize: 12, color: '#a8a29e' }}>Submitted: <strong style={{ color: '#78716c' }}>{new Date(viewingReport.created_at).toLocaleString()}</strong></div>
-                {viewingReport.shifts && (
-                  <div style={{ fontSize: 12, color: '#a8a29e' }}>Shift: <strong style={{ color: '#78716c' }}>{new Date(viewingReport.shifts.start_time).toLocaleDateString()} {new Date(viewingReport.shifts.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – {new Date(viewingReport.shifts.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong></div>
-                )}
               </div>
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#a8a29e', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>Activity Summary</div>
@@ -876,7 +1037,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* EDIT MODALS */}
         {editingGuard && (
           <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setEditingGuard(null)}>
             <div className="modal-box">
