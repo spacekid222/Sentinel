@@ -163,6 +163,13 @@ export default function Home() {
   const todayShifts = shifts.filter(s => new Date(s.start_time).toDateString() === today.toDateString())
   const openIncidents = incidents.filter(i => i.status === 'open')
   const expiringGuards = guards.filter(g => { if (!g.license_expiry) return false; const diff = (new Date(g.license_expiry).getTime()-today.getTime())/(1000*60*60*24); return diff <= 30 })
+  const overtimeGuards = guards.map(g => {
+  const weekStart = new Date(today); weekStart.setDate(today.getDate() - today.getDay());
+  const weekEnd = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 7);
+  const weekShifts = shifts.filter(s => s.guard_id === g.id && new Date(s.start_time) >= weekStart && new Date(s.start_time) < weekEnd);
+  const totalHrs = weekShifts.reduce((a, s) => a + (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / (1000 * 60 * 60), 0);
+  return { guard: g, hours: totalHrs };
+}).filter(r => r.hours > 40);  
   const selectedSite = sites.find(s => s.id === selectedSiteId)
   const sitePostOrders = postOrders.filter(po => po.site_id === selectedSiteId)
 
@@ -496,7 +503,7 @@ export default function Home() {
                       { label: 'Night shifts', value: shifts.filter(s=>s.shift_type==='night').length },
                       { label: 'Total incidents', value: incidents.length },
                       { label: 'Activity reports', value: activityReports.length },
-                      { label: 'Unavailability records', value: availability.length },
+                      { label: 'Unavailability records', value: availability.length },{ label: 'Overtime this week', value: overtimeGuards.length },
                     ].map(r => (
                       <div key={r.label} className="overview-row"><span className="overview-label">{r.label}</span><span className="overview-val">{r.value}</span></div>
                     ))}
