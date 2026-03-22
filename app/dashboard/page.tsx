@@ -63,7 +63,13 @@ const [showAddCheckpoint, setShowAddCheckpoint] = useState(false)
 const [checkpointForm, setCheckpointForm] = useState({ name: '', location: '', site_id: '' })
 const [showAddClient, setShowAddClient] = useState(false)
 const [clientForm, setClientForm] = useState({ name: '', email: '', site_id: '' })
-  const [activeNav, setActiveNav] = useState('dashboard')
+  const [activeNav, setActiveNav] = useState(() => {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search)
+    return params.get('tab') || 'dashboard'
+  }
+  return 'dashboard'
+})
   const [loading, setLoading] = useState(true)
   const [selectedSiteId, setSelectedSiteId] = useState<string>('')
 
@@ -464,7 +470,7 @@ if (cs.data) setCheckpointScans(cs.data)
               <div key={group.label} className="nav-group">
                 <div className="nav-group-label">{group.label}</div>
                 {group.items.map(item => (
-                  <button key={item.id} className={`nav-btn${activeNav === item.id ? ' active' : ''}`} onClick={() => setActiveNav(item.id)}>
+                  <button key={item.id} className={`nav-btn${activeNav === item.id ? ' active' : ''}`} onClick={() => { setActiveNav(item.id); window.history.pushState({}, '', `?tab=${item.id}`) }}>
                     <span className="nav-icon">{item.icon}</span>
                     {item.label}
                   </button>
