@@ -17,7 +17,7 @@ export default function Login() {
       ? await supabase.auth.signUp({ email, password })
       : await supabase.auth.signInWithPassword({ email, password })
     if (error) setError(error.message)
-    else window.location.href = '/'
+    else window.location.href = '/dashboard'
     setLoading(false)
   }
 
@@ -39,7 +39,7 @@ export default function Login() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 40, justifyContent: 'center' }}>
             <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #f97316, #dc2626)', borderRadius: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, boxShadow: '0 0 24px rgba(249,115,22,0.4)' }}>⚡</div>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.5px' }}>Sentinel</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.5px' }}>Watchpost</div>
               <div style={{ fontSize: 10, color: '#475569', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 500 }}>Security Platform</div>
             </div>
           </div>
@@ -50,7 +50,7 @@ export default function Login() {
               {isSignUp ? 'Create account' : 'Welcome back'}
             </div>
             <div style={{ fontSize: 13, color: '#475569', marginBottom: 28 }}>
-              {isSignUp ? 'Set up your Sentinel account' : 'Sign in to your dashboard'}
+              {isSignUp ? 'Set up your Watchpost account' : 'Sign in to your dashboard'}
             </div>
 
             <div style={{ marginBottom: 14 }}>

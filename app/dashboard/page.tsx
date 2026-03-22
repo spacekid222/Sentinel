@@ -619,7 +619,7 @@ export default function Home() {
             <div className="logo-row">
               <div className="logo-badge">⚡</div>
               <div>
-                <div className="logo-name">Sentinel</div>
+                <div className="logo-name">Watchpost</div>
                 <div className="logo-tagline">Security Platform</div>
               </div>
             </div>
