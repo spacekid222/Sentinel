@@ -36,7 +36,9 @@ interface Availability {
   id: string; guard_id: string; date: string; reason: string
   guards?: { name: string }
 }
-
+interface Client {
+  id: string; name: string; email: string; site_id: string
+}
 export default function Home() {
   const [guards, setGuards] = useState<Guard[]>([])
   const [sites, setSites] = useState<Site[]>([])
@@ -45,6 +47,9 @@ export default function Home() {
   const [postOrders, setPostOrders] = useState<PostOrder[]>([])
   const [activityReports, setActivityReports] = useState<ActivityReport[]>([])
   const [availability, setAvailability] = useState<Availability[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+const [showAddClient, setShowAddClient] = useState(false)
+const [clientForm, setClientForm] = useState({ name: '', email: '', site_id: '' })
   const [activeNav, setActiveNav] = useState('dashboard')
   const [loading, setLoading] = useState(true)
   const [selectedSiteId, setSelectedSiteId] = useState<string>('')
@@ -101,6 +106,8 @@ export default function Home() {
     if (po.data) setPostOrders(po.data)
     if (ar.data) setActivityReports(ar.data)
     if (av.data) setAvailability(av.data)
+        const cl = await supabase.from('clients').select('*').order('name')
+if (cl.data) setClients(cl.data)
     setLoading(false)
   }
 
@@ -124,6 +131,10 @@ export default function Home() {
     const { error } = await supabase.from('activity_reports').insert([{ ...reportForm, guard_id: sel?.guard_id || '', site_id: sel?.site_id || '' }])
     if (!error) { setShowAddReport(false); setReportForm({ shift_id: '', guard_id: '', site_id: '', summary: '', observations: '' }); fetchAll() }
   }
+  async function addClient() {
+  const { error } = await supabase.from('clients').insert([{ name: clientForm.name, email: clientForm.email, site_id: clientForm.site_id }])
+  if (!error) { setShowAddClient(false); setClientForm({ name: '', email: '', site_id: '', password: '' }); const cl = await supabase.from('clients').select('*').order('name'); if (cl.data) setClients(cl.data) }
+}
   async function addAvailability() {
     const { error } = await supabase.from('guard_availability').insert([availabilityForm])
     if (!error) { setShowAddAvailability(false); setAvailabilityForm({ guard_id: '', date: '', reason: '' }); fetchAll() }
@@ -185,6 +196,7 @@ export default function Home() {
       { id: 'schedule', label: 'Schedule', icon: '⊟' },
       { id: 'guards', label: 'Guards', icon: '⊕' },
       { id: 'availability', label: 'Availability', icon: '◷' },
+      { id: 'clients', label: 'Clients', icon: '◉' },
       { id: 'sites', label: 'Sites', icon: '⊠' },
       { id: 'postorders', label: 'Post Orders', icon: '≡' },
     ]},
@@ -463,6 +475,7 @@ export default function Home() {
             {activeNav === 'postorders' && selectedSiteId && <button className="btn-add" onClick={() => setShowAddPostOrder(true)}>+ Add Order</button>}
             {activeNav === 'reports' && <button className="btn-add" onClick={() => setShowAddReport(true)}>+ Submit Report</button>}
             {activeNav === 'availability' && <button className="btn-add" onClick={() => setShowAddAvailability(true)}>+ Mark Unavailable</button>}
+            {activeNav === 'clients' && <button className="btn-add" onClick={() => setShowAddClient(true)}>+ Add Client</button>}
           </div>
 
           <div className="scroll-area">
@@ -609,7 +622,26 @@ export default function Home() {
                 </table>
               </div>
             )}
-
+{/* CLIENTS */}
+{!loading && activeNav === 'clients' && (
+  <div className="table-wrap">
+    <table>
+      <thead><tr>{['Name','Email','Site','Portal Link',''].map(h=><th key={h}>{h}</th>)}</tr></thead>
+      <tbody>
+        {clients.length===0 && <tr><td colSpan={5}><div className="empty"><div className="empty-icon">◉</div><div className="empty-title">No clients yet</div><div className="empty-sub">Add a client to give them portal access</div></div></td></tr>}
+        {clients.map(c=>(
+          <tr key={c.id}>
+            <td className="td-name">{c.name}</td>
+            <td className="td-mono">{c.email}</td>
+            <td>{sites.find(s=>s.id===c.site_id)?.name||'—'}</td>
+            <td className="td-mono" style={{color:'var(--accent)'}}>/client-login</td>
+            <td><div className="row-actions"><button className="btn-sm del" onClick={async()=>{ if(!confirm('Delete this client?'))return; await supabase.from('clients').delete().eq('id',c.id); const cl=await supabase.from('clients').select('*').order('name'); if(cl.data)setClients(cl.data) }}>Del</button></div></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}
             {/* SITES */}
             {!loading && activeNav === 'sites' && (
               <div className="table-wrap">
@@ -789,7 +821,14 @@ export default function Home() {
             )}
           </div>
         </div>
-
+{/* ADD CLIENT */}
+{showAddClient && <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&setShowAddClient(false)}><div className="modal">
+  <div className="modal-title">Add Client</div><div className="modal-sub">Create a client portal account linked to a site</div>
+  <div className="field"><label>Client Name *</label><input placeholder="Acme Corp" value={clientForm.name} onChange={e=>setClientForm({...clientForm,name:e.target.value})} /></div>
+  <div className="field"><label>Email *</label><input placeholder="client@acmecorp.com" value={clientForm.email} onChange={e=>setClientForm({...clientForm,email:e.target.value})} /></div>
+  <div className="field"><label>Site *</label><select value={clientForm.site_id} onChange={e=>setClientForm({...clientForm,site_id:e.target.value})}><option value="">Select site</option>{sites.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+  <div className="modal-actions"><button className="btn-cancel" onClick={()=>setShowAddClient(false)}>Cancel</button><button className="btn-save" onClick={addClient}>Create Client</button></div>
+</div></div>}
         {/* ADD GUARD */}
         {showAddGuard && <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&setShowAddGuard(false)}><div className="modal">
           <div className="modal-title">Add Guard</div><div className="modal-sub">Enter guard details</div>
