@@ -14,7 +14,9 @@ export default function GuardLogin() {
     setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) { setError(error.message); setLoading(false); return }
-    window.location.href = '/guard'
+    const params = new URLSearchParams(window.location.search)
+const redirect = params.get('redirect')
+window.location.href = redirect || '/guard'
     setLoading(false)
   }
 
