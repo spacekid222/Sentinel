@@ -39,6 +39,15 @@ interface Availability {
 interface Client {
   id: string; name: string; email: string; site_id: string
 }
+interface Checkpoint {
+  id: string; site_id: string; name: string; location: string
+  sites?: { name: string }
+}
+interface CheckpointScan {
+  id: string; checkpoint_id: string; guard_id: string; shift_id: string; scanned_at: string
+  checkpoints?: { name: string; sites?: { name: string } }
+  guards?: { name: string }
+}
 export default function Home() {
   const [guards, setGuards] = useState<Guard[]>([])
   const [sites, setSites] = useState<Site[]>([])
@@ -48,6 +57,10 @@ export default function Home() {
   const [activityReports, setActivityReports] = useState<ActivityReport[]>([])
   const [availability, setAvailability] = useState<Availability[]>([])
   const [clients, setClients] = useState<Client[]>([])
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
+const [checkpointScans, setCheckpointScans] = useState<CheckpointScan[]>([])
+const [showAddCheckpoint, setShowAddCheckpoint] = useState(false)
+const [checkpointForm, setCheckpointForm] = useState({ name: '', location: '', site_id: '' })
 const [showAddClient, setShowAddClient] = useState(false)
 const [clientForm, setClientForm] = useState({ name: '', email: '', site_id: '' })
   const [activeNav, setActiveNav] = useState('dashboard')
@@ -108,6 +121,10 @@ const [clientForm, setClientForm] = useState({ name: '', email: '', site_id: '' 
     if (av.data) setAvailability(av.data)
         const cl = await supabase.from('clients').select('*').order('name')
 if (cl.data) setClients(cl.data)
+    const cp = await supabase.from('checkpoints').select('*, sites(name)').order('name')
+if (cp.data) setCheckpoints(cp.data)
+const cs = await supabase.from('checkpoint_scans').select('*, checkpoints(name, sites(name)), guards(name)').order('scanned_at', { ascending: false })
+if (cs.data) setCheckpointScans(cs.data)
     setLoading(false)
   }
 
@@ -131,6 +148,10 @@ if (cl.data) setClients(cl.data)
     const { error } = await supabase.from('activity_reports').insert([{ ...reportForm, guard_id: sel?.guard_id || '', site_id: sel?.site_id || '' }])
     if (!error) { setShowAddReport(false); setReportForm({ shift_id: '', guard_id: '', site_id: '', summary: '', observations: '' }); fetchAll() }
   }
+  async function addCheckpoint() {
+  const { error } = await supabase.from('checkpoints').insert([checkpointForm])
+  if (!error) { setShowAddCheckpoint(false); setCheckpointForm({ name: '', location: '', site_id: '' }); const cp = await supabase.from('checkpoints').select('*, sites(name)').order('name'); if (cp.data) setCheckpoints(cp.data) }
+}
   async function addClient() {
   const { error } = await supabase.from('clients').insert([{ name: clientForm.name, email: clientForm.email, site_id: clientForm.site_id }])
   if (!error) { setShowAddClient(false); setClientForm({ name: '', email: '', site_id: '', password: '' }); const cl = await supabase.from('clients').select('*').order('name'); if (cl.data) setClients(cl.data) }
@@ -197,6 +218,7 @@ if (cl.data) setClients(cl.data)
       { id: 'guards', label: 'Guards', icon: '⊕' },
       { id: 'availability', label: 'Availability', icon: '◷' },
       { id: 'clients', label: 'Clients', icon: '◉' },
+      { id: 'checkpoints', label: 'Checkpoints', icon: '⊗' },
       { id: 'sites', label: 'Sites', icon: '⊠' },
       { id: 'postorders', label: 'Post Orders', icon: '≡' },
     ]},
@@ -476,6 +498,7 @@ if (cl.data) setClients(cl.data)
             {activeNav === 'reports' && <button className="btn-add" onClick={() => setShowAddReport(true)}>+ Submit Report</button>}
             {activeNav === 'availability' && <button className="btn-add" onClick={() => setShowAddAvailability(true)}>+ Mark Unavailable</button>}
             {activeNav === 'clients' && <button className="btn-add" onClick={() => setShowAddClient(true)}>+ Add Client</button>}
+            {activeNav === 'checkpoints' && <button className="btn-add" onClick={() => setShowAddCheckpoint(true)}>+ Add Checkpoint</button>}
           </div>
 
           <div className="scroll-area">
@@ -640,6 +663,52 @@ if (cl.data) setClients(cl.data)
         ))}
       </tbody>
     </table>
+  </div>
+)}
+{/* CHECKPOINTS */}
+{!loading && activeNav === 'checkpoints' && (
+  <div>
+    <div className="table-wrap" style={{ marginBottom: 24 }}>
+      <table>
+        <thead><tr>{['Checkpoint','Site','Location','QR URL',''].map(h=><th key={h}>{h}</th>)}</tr></thead>
+        <tbody>
+          {checkpoints.length===0 && <tr><td colSpan={5}><div className="empty"><div className="empty-icon">⊗</div><div className="empty-title">No checkpoints yet</div><div className="empty-sub">Add checkpoints to generate QR codes for guard patrols</div></div></td></tr>}
+          {checkpoints.map(cp=>(
+            <tr key={cp.id}>
+              <td className="td-name">{cp.name}</td>
+              <td>{cp.sites?.name||'—'}</td>
+              <td>{cp.location||'—'}</td>
+              <td className="td-mono" style={{color:'var(--accent)'}}>/scan/{cp.id}</td>
+              <td><div className="row-actions">
+                <button className="btn-sm view" onClick={()=>{
+                  const url = `${window.location.origin}/scan/${cp.id}`
+                  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}`
+                  window.open(qrUrl, '_blank')
+                }}>Print QR</button>
+                <button className="btn-sm del" onClick={async()=>{ if(!confirm('Delete this checkpoint?'))return; await supabase.from('checkpoints').delete().eq('id',cp.id); const c=await supabase.from('checkpoints').select('*, sites(name)').order('name'); if(c.data)setCheckpoints(c.data) }}>Del</button>
+              </div></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+    <div style={{fontSize:13,fontWeight:700,color:'var(--text)',marginBottom:12}}>Recent Patrol Scans</div>
+    <div className="table-wrap">
+      <table>
+        <thead><tr>{['Guard','Checkpoint','Site','Scanned At'].map(h=><th key={h}>{h}</th>)}</tr></thead>
+        <tbody>
+          {checkpointScans.length===0 && <tr><td colSpan={4}><div className="empty"><div className="empty-icon">⊗</div><div className="empty-title">No scans yet</div><div className="empty-sub">Scans will appear here when guards scan QR codes</div></div></td></tr>}
+          {checkpointScans.slice(0,50).map(scan=>(
+            <tr key={scan.id}>
+              <td className="td-name">{scan.guards?.name||'—'}</td>
+              <td>{scan.checkpoints?.name||'—'}</td>
+              <td>{scan.checkpoints?.sites?.name||'—'}</td>
+              <td className="td-mono">{new Date(scan.scanned_at).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   </div>
 )}
             {/* SITES */}
@@ -821,6 +890,14 @@ if (cl.data) setClients(cl.data)
             )}
           </div>
         </div>
+        {/* ADD CHECKPOINT */}
+{showAddCheckpoint && <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&setShowAddCheckpoint(false)}><div className="modal">
+  <div className="modal-title">Add Checkpoint</div><div className="modal-sub">Create a patrol checkpoint and generate a QR code</div>
+  <div className="field"><label>Checkpoint Name *</label><input placeholder="e.g. Loading Dock, Main Entrance" value={checkpointForm.name} onChange={e=>setCheckpointForm({...checkpointForm,name:e.target.value})} /></div>
+  <div className="field"><label>Site *</label><select value={checkpointForm.site_id} onChange={e=>setCheckpointForm({...checkpointForm,site_id:e.target.value})}><option value="">Select site</option>{sites.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+  <div className="field"><label>Location Description</label><input placeholder="e.g. Floor 3, east stairwell" value={checkpointForm.location} onChange={e=>setCheckpointForm({...checkpointForm,location:e.target.value})} /></div>
+  <div className="modal-actions"><button className="btn-cancel" onClick={()=>setShowAddCheckpoint(false)}>Cancel</button><button className="btn-save" onClick={addCheckpoint}>Create Checkpoint</button></div>
+</div></div>}
 {/* ADD CLIENT */}
 {showAddClient && <div className="modal-bg" onClick={e=>e.target===e.currentTarget&&setShowAddClient(false)}><div className="modal">
   <div className="modal-title">Add Client</div><div className="modal-sub">Create a client portal account linked to a site</div>
