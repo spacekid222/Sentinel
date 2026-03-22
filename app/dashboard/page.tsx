@@ -214,6 +214,25 @@ export default function Home() {
   }
 
   const fmt$ = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  function exportPayroll() {
+  const rows = guards.map(guard => {
+    const guardShifts = billingShifts.filter(s => s.guard_id === guard.id)
+    const totalHrs = guardShifts.reduce((a, s) => a + (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / (1000 * 60 * 60), 0)
+    const totalPay = guardShifts.reduce((a, s) => {
+      const hrs = (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / (1000 * 60 * 60)
+      return a + hrs * s.pay_rate
+    }, 0)
+    return `${guard.name},${guard.email||''},${totalHrs.toFixed(2)},${totalPay.toFixed(2)}`
+  }).filter(r => !r.endsWith(',0.00,0.00'))
+  const csv = ['Name,Email,Hours,Total Pay', ...rows].join('\n')
+  const blob = new Blob([csv], { type: 'text/csv' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `watchpost-payroll-${billingStart}-to-${billingEnd}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+}
   const fmtDate = (d: string) => new Date(d).toLocaleDateString([], { month: 'short', day: 'numeric' })
   const fmtTime = (d: string) => new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   const fmtDateTime = (d: string) => new Date(d).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -711,7 +730,10 @@ export default function Home() {
                       {sites.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
-                  <div style={{marginLeft:'auto',textAlign:'right'}}><div style={{fontSize:11,color:'var(--text3)'}}>{billingShifts.length} shifts · {grandHrs.toFixed(1)} hrs</div></div>
+                  <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:12}}>
+  <div style={{fontSize:11,color:'var(--text3)'}}>{billingShifts.length} shifts · {grandHrs.toFixed(1)} hrs</div>
+  <button className="btn-add" onClick={exportPayroll}>↓ Export Payroll CSV</button>
+</div>
                 </div>
                 <div className="stats-grid" style={{marginBottom:20}}>
                   <div className="stat-card"><div className="stat-label">Total Billable</div><div className="stat-num" style={{fontSize:20}}>{fmt$(grandBill)}</div><div className="stat-sub">Client invoices</div></div>
