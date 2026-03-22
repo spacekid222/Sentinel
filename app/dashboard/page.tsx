@@ -154,7 +154,7 @@ if (cs.data) setCheckpointScans(cs.data)
 }
   async function addClient() {
   const { error } = await supabase.from('clients').insert([{ name: clientForm.name, email: clientForm.email, site_id: clientForm.site_id }])
-  if (!error) { setShowAddClient(false); setClientForm({ name: '', email: '', site_id: '', password: '' }); const cl = await supabase.from('clients').select('*').order('name'); if (cl.data) setClients(cl.data) }
+  if (!error) { setShowAddClient(false); setClientForm({ name: '', email: '', site_id: '' }); const cl = await supabase.from('clients').select('*').order('name'); if (cl.data) setClients(cl.data) }
 }
   async function addAvailability() {
     const { error } = await supabase.from('guard_availability').insert([availabilityForm])
