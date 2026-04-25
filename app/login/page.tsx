@@ -96,11 +96,9 @@ export default function Login() {
             </button>
 
             <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#475569' }}>
-              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
-              <span onClick={() => setIsSignUp(!isSignUp)} style={{ color: '#f97316', fontWeight: 600, cursor: 'pointer' }}>
-                {isSignUp ? 'Sign in' : 'Sign up'}
-              </span>
-            </div>
+  Don't have an account?{' '}
+  <a href="/signup" style={{ color: '#f97316', fontWeight: 600, textDecoration: 'none' }}>Sign up</a>
+</div>
           </div>
         </div>
       </div>

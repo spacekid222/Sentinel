@@ -53,10 +53,12 @@ export default function ScanPage() {
         .single()
 
       // Log the scan
+      // Log the scan
       const { error } = await supabase.from('checkpoint_scans').insert([{
         checkpoint_id: checkpointId,
         guard_id: guardData.id,
         shift_id: shiftData?.id || null,
+        organization_id: cpData.organization_id,
       }])
 
       if (error) { setStatus('error'); setMessage('Failed to log scan. Try again.'); return }

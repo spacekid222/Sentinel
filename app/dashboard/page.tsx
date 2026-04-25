@@ -134,8 +134,8 @@ if (cs.data) setCheckpointScans(cs.data)
     setLoading(false)
   }
 
-  async function addGuard() { const { error } = await supabase.from('guards').insert([guardForm]); if (!error) { setShowAddGuard(false); setGuardForm({ name: '', email: '', phone: '', license_number: '', license_expiry: '' }); fetchAll() } }
-  async function addSite() { const { error } = await supabase.from('sites').insert([siteForm]); if (!error) { setShowAddSite(false); setSiteForm({ name: '', address: '', contact_name: '', contact_phone: '' }); fetchAll() } }
+  async function addGuard() { const { error } = await supabase.from('guards').insert([{...guardForm, organization_id: orgId}]); if (!error) { setShowAddGuard(false); setGuardForm({ name: '', email: '', phone: '', license_number: '', license_expiry: '' }); fetchAll() } }
+  async function addSite() { const { error } = await supabase.from('sites').insert([{...siteForm, organization_id: orgId}]); if (!error) { setShowAddSite(false); setSiteForm({ name: '', address: '', contact_name: '', contact_phone: '' }); fetchAll() } }
   async function addShift() {
     const guard = guards.find(g => g.id === shiftForm.guard_id)
     const shiftDate = shiftForm.start_time.slice(0, 10)
@@ -144,26 +144,26 @@ if (cs.data) setCheckpointScans(cs.data)
       const reason = availability.find(a => a.guard_id === shiftForm.guard_id && a.date === shiftDate)?.reason
       if (!confirm(`⚠️ ${guard?.name} is marked unavailable on this date${reason ? ` (${reason})` : ''}. Schedule anyway?`)) return
     }
-    const { error } = await supabase.from('shifts').insert([{ ...shiftForm, pay_rate: parseFloat(shiftForm.pay_rate), bill_rate: parseFloat(shiftForm.bill_rate) }])
+    const { error } = await supabase.from('shifts').insert([{ ...shiftForm, pay_rate: parseFloat(shiftForm.pay_rate), bill_rate: parseFloat(shiftForm.bill_rate), organization_id: orgId }])
     if (!error) { setShowAddShift(false); setShiftForm({ guard_id: '', site_id: '', start_time: '', end_time: '', shift_type: 'day', pay_rate: '', bill_rate: '' }); fetchAll() }
   }
-  async function addIncident() { const { error } = await supabase.from('incidents').insert([incidentForm]); if (!error) { setShowAddIncident(false); setIncidentForm({ title: '', description: '', severity: 'low', site_id: '', guard_id: '' }); fetchAll() } }
-  async function addPostOrder() { const { error } = await supabase.from('post_orders').insert([{ ...postOrderForm, site_id: selectedSiteId }]); if (!error) { setShowAddPostOrder(false); setPostOrderForm({ title: '', content: '', category: 'general' }); fetchAll() } }
+  async function addIncident() { const { error } = await supabase.from('incidents').insert([{...incidentForm, organization_id: orgId}]); if (!error) { setShowAddIncident(false); setIncidentForm({ title: '', description: '', severity: 'low', site_id: '', guard_id: '' }); fetchAll() } }
+  async function addPostOrder() { const { error } = await supabase.from('post_orders').insert([{ ...postOrderForm, site_id: selectedSiteId, organization_id: orgId }]); if (!error) { setShowAddPostOrder(false); setPostOrderForm({ title: '', content: '', category: 'general' }); fetchAll() } }
   async function addReport() {
     const sel = shifts.find(s => s.id === reportForm.shift_id)
-    const { error } = await supabase.from('activity_reports').insert([{ ...reportForm, guard_id: sel?.guard_id || '', site_id: sel?.site_id || '' }])
+    const { error } = await supabase.from('activity_reports').insert([{ ...reportForm, guard_id: sel?.guard_id || '', site_id: sel?.site_id || '', organization_id: orgId }])
     if (!error) { setShowAddReport(false); setReportForm({ shift_id: '', guard_id: '', site_id: '', summary: '', observations: '' }); fetchAll() }
   }
   async function addCheckpoint() {
-  const { error } = await supabase.from('checkpoints').insert([checkpointForm])
+  const { error } = await supabase.from('checkpoints').insert([{...checkpointForm, organization_id: orgId}])
   if (!error) { setShowAddCheckpoint(false); setCheckpointForm({ name: '', location: '', site_id: '' }); const cp = await supabase.from('checkpoints').select('*, sites(name)').order('name'); if (cp.data) setCheckpoints(cp.data) }
 }
   async function addClient() {
-  const { error } = await supabase.from('clients').insert([{ name: clientForm.name, email: clientForm.email, site_id: clientForm.site_id }])
+  const { error } = await supabase.from('clients').insert([{ name: clientForm.name, email: clientForm.email, site_id: clientForm.site_id, organization_id: orgId }])
   if (!error) { setShowAddClient(false); setClientForm({ name: '', email: '', site_id: '' }); const cl = await supabase.from('clients').select('*').order('name'); if (cl.data) setClients(cl.data) }
 }
   async function addAvailability() {
-    const { error } = await supabase.from('guard_availability').insert([availabilityForm])
+    const { error } = await supabase.from('guard_availability').insert([{...availabilityForm, organization_id: orgId}])
     if (!error) { setShowAddAvailability(false); setAvailabilityForm({ guard_id: '', date: '', reason: '' }); fetchAll() }
   }
 
