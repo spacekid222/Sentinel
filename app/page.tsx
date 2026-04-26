@@ -532,8 +532,8 @@ export default function Landing() {
         </div>
         <div className="pricing-card">
           <div className="pricing-badge">All features included</div>
-          <div className="pricing-price"><sup>$</sup>199</div>
-          <div className="pricing-period">per month · unlimited guards · unlimited sites</div>
+         <div className="pricing-price"><sup>$</sup>75</div>
+<div className="pricing-period">per month · unlimited guards · unlimited sites</div>
           <div className="pricing-features">
             {['Unlimited guards and sites','Full shift scheduling','Post orders per site','Daily activity reports','Incident management','Billing & payroll reports','License expiry tracking','QR patrol checkpoints','Priority support','Free onboarding call'].map((f,i) => (
               <div key={i} className="pricing-feature"><span className="pricing-feature-check">✓</span>{f}</div>
