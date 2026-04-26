@@ -516,6 +516,23 @@ const [isRecurring, setIsRecurring] = useState(false)
         .report-block { margin-bottom: 14px; }
         .report-block-label { font-size: 10.5px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.7px; margin-bottom: 8px; }
         .report-block-content { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-size: 13.5px; color: var(--text2); line-height: 1.65; white-space: pre-wrap; }
+        @media print {
+  .sidebar, .topbar, .btn-add, .row-actions, .billing-filter-bar button, .modal-bg { display: none !important; }
+  .main { overflow: visible !important; }
+  .scroll-area { overflow: visible !important; height: auto !important; }
+  body { background: white !important; color: black !important; }
+  .stat-card, .billing-site-block, .table-wrap, .dash-card { border: 1px solid #ddd !important; background: white !important; break-inside: avoid; }
+  .stat-num, .td-name, .topbar-title { color: black !important; }
+  .td-mono, .stat-label, .billing-site-name { color: #333 !important; }
+  .td-money, .td-green, .billing-num-val { color: #1a1a1a !important; }
+  .billing-footer { background: #f5f5f5 !important; border: 1px solid #ddd !important; }
+  .billing-footer-num-val, .billing-footer-label { color: black !important; }
+  .pill { border: 1px solid #ddd !important; color: #333 !important; background: #f5f5f5 !important; }
+  .print-header { display: block !important; }
+}
+.print-header { display: none; padding: 0 0 20px; }
+.print-header h1 { font-size: 20px; font-weight: 700; color: black; margin-bottom: 4px; }
+.print-header p { font-size: 12px; color: #666; }
       `}</style>
 
       {/* Sidebar overlay for mobile */}
@@ -587,7 +604,7 @@ const [isRecurring, setIsRecurring] = useState(false)
             {activeNav === 'sites' && <button className="btn-add" onClick={() => setShowAddSite(true)}>+ Site</button>}
             {activeNav === 'incidents' && <button className="btn-add" onClick={() => setShowAddIncident(true)}>+ Incident</button>}
             {activeNav === 'postorders' && selectedSiteId && <button className="btn-add" onClick={() => setShowAddPostOrder(true)}>+ Order</button>}
-            {activeNav === 'reports' && <button className="btn-add" onClick={() => setShowAddReport(true)}>+ Report</button>}
+            {activeNav === 'reports' && <><button className="btn-add" onClick={() => setShowAddReport(true)}>+ Report</button><button className="btn-add" onClick={() => window.print()} style={{background:'var(--bg3)',border:'1px solid var(--border)',boxShadow:'none'}}>↓ PDF</button></>}
             {activeNav === 'availability' && <button className="btn-add" onClick={() => setShowAddAvailability(true)}>+ Unavailable</button>}
             {activeNav === 'checkpoints' && <button className="btn-add" onClick={() => setShowAddCheckpoint(true)}>+ Checkpoint</button>}
             {activeNav === 'clients' && <button className="btn-add" onClick={() => setShowAddClient(true)}>+ Client</button>}
@@ -914,6 +931,10 @@ const [isRecurring, setIsRecurring] = useState(false)
             {/* BILLING */}
             {!loading && activeNav==='billing' && (
               <div>
+                <div className="print-header">
+                  <h1>Billing Report — Watchpost</h1>
+                  <p>{new Date(billingStart).toLocaleDateString()} – {new Date(billingEnd).toLocaleDateString()} · Generated {new Date().toLocaleString()}</p>
+                </div>
                 <div className="billing-filter-bar">
                   <div className="filter-group"><label>From</label><input type="date" value={billingStart} onChange={e=>setBillingStart(e.target.value)}/></div>
                   <div className="filter-group"><label>To</label><input type="date" value={billingEnd} onChange={e=>setBillingEnd(e.target.value)}/></div>
@@ -924,6 +945,7 @@ const [isRecurring, setIsRecurring] = useState(false)
                     </select>
                   </div>
                   <button className="btn-add" onClick={exportPayroll} style={{alignSelf:'flex-end'}}>↓ Payroll CSV</button>
+<button className="btn-add" onClick={() => window.print()} style={{alignSelf:'flex-end',background:'var(--bg3)',border:'1px solid var(--border)',boxShadow:'none'}}>↓ PDF</button>
                 </div>
                 <div className="stats-grid" style={{marginBottom:16}}>
                   <div className="stat-card"><div className="stat-label">Billable</div><div className="stat-num" style={{fontSize:18}}>{fmt$(grandBill)}</div></div>
