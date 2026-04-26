@@ -56,6 +56,7 @@ export default function Home() {
   const [postOrders, setPostOrders] = useState<PostOrder[]>([])
   const [activityReports, setActivityReports] = useState<ActivityReport[]>([])
   const [availability, setAvailability] = useState<Availability[]>([])
+  const [orgId, setOrgId] = useState<string | null>(null)
   const [clients, setClients] = useState<Client[]>([])
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([])
 const [checkpointScans, setCheckpointScans] = useState<CheckpointScan[]>([])
