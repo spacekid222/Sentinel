@@ -31,6 +31,7 @@ export default function RootLayout({
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Watchpost" />
     <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
