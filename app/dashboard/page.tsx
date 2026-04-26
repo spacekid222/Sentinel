@@ -90,6 +90,9 @@ export default function Home() {
   const [guardForm, setGuardForm] = useState({ name: '', email: '', phone: '', license_number: '', license_expiry: '' })
   const [siteForm, setSiteForm] = useState({ name: '', address: '', contact_name: '', contact_phone: '' })
   const [shiftForm, setShiftForm] = useState({ guard_id: '', site_id: '', start_time: '', end_time: '', shift_type: 'day', pay_rate: '', bill_rate: '' })
+const [recurringDays, setRecurringDays] = useState<number[]>([])
+const [recurringWeeks, setRecurringWeeks] = useState(1)
+const [isRecurring, setIsRecurring] = useState(false)
   const [incidentForm, setIncidentForm] = useState({ title: '', description: '', severity: 'low', site_id: '', guard_id: '' })
   const [postOrderForm, setPostOrderForm] = useState({ title: '', content: '', category: 'general' })
   const [reportForm, setReportForm] = useState({ shift_id: '', guard_id: '', site_id: '', summary: '', observations: '' })
@@ -152,8 +155,27 @@ export default function Home() {
       const reason = availability.find(a => a.guard_id === shiftForm.guard_id && a.date === shiftDate)?.reason
       if (!confirm(`⚠️ ${guard?.name} is marked unavailable on this date${reason ? ` (${reason})` : ''}. Schedule anyway?`)) return
     }
-    const { error } = await supabase.from('shifts').insert([{ ...shiftForm, pay_rate: parseFloat(shiftForm.pay_rate), bill_rate: parseFloat(shiftForm.bill_rate), organization_id: orgId }])
-    if (!error) { setShowAddShift(false); setShiftForm({ guard_id: '', site_id: '', start_time: '', end_time: '', shift_type: 'day', pay_rate: '', bill_rate: '' }); fetchAll() }
+    if (!isRecurring || recurringDays.length === 0) {
+      const { error } = await supabase.from('shifts').insert([{ ...shiftForm, pay_rate: parseFloat(shiftForm.pay_rate), bill_rate: parseFloat(shiftForm.bill_rate), organization_id: orgId }])
+      if (!error) { setShowAddShift(false); setShiftForm({ guard_id: '', site_id: '', start_time: '', end_time: '', shift_type: 'day', pay_rate: '', bill_rate: '' }); setIsRecurring(false); setRecurringDays([]); setRecurringWeeks(1); fetchAll() }
+      return
+    }
+    const baseStart = new Date(shiftForm.start_time)
+    const baseEnd = new Date(shiftForm.end_time)
+    const durationMs = baseEnd.getTime() - baseStart.getTime()
+    const shiftsToInsert = []
+    for (let week = 0; week < recurringWeeks; week++) {
+      for (const dayOfWeek of recurringDays) {
+        const shiftStart = new Date(baseStart)
+        shiftStart.setDate(baseStart.getDate() + (week * 7) + ((dayOfWeek - baseStart.getDay() + 7) % 7) + (week === 0 && dayOfWeek < baseStart.getDay() ? 7 : 0))
+        shiftStart.setHours(baseStart.getHours(), baseStart.getMinutes(), 0, 0)
+        const shiftEnd = new Date(shiftStart.getTime() + durationMs)
+        shiftsToInsert.push({ guard_id: shiftForm.guard_id, site_id: shiftForm.site_id, shift_type: shiftForm.shift_type, pay_rate: parseFloat(shiftForm.pay_rate), bill_rate: parseFloat(shiftForm.bill_rate), status: 'scheduled', organization_id: orgId, start_time: shiftStart.toISOString(), end_time: shiftEnd.toISOString() })
+      }
+    }
+    const { error } = await supabase.from('shifts').insert(shiftsToInsert)
+    if (!error) { setShowAddShift(false); setShiftForm({ guard_id: '', site_id: '', start_time: '', end_time: '', shift_type: 'day', pay_rate: '', bill_rate: '' }); setIsRecurring(false); setRecurringDays([]); setRecurringWeeks(1); fetchAll() }
+    else { alert('Error creating shifts: ' + error.message) }
   }
   async function addIncident() { const { error } = await supabase.from('incidents').insert([{...incidentForm, organization_id: orgId}]); if (!error) { setShowAddIncident(false); setIncidentForm({ title: '', description: '', severity: 'low', site_id: '', guard_id: '' }); fetchAll() } }
   async function addPostOrder() { const { error } = await supabase.from('post_orders').insert([{ ...postOrderForm, site_id: selectedSiteId, organization_id: orgId }]); if (!error) { setShowAddPostOrder(false); setPostOrderForm({ title: '', content: '', category: 'general' }); fetchAll() } }
@@ -1000,7 +1022,42 @@ export default function Home() {
             <div className="field"><label>Pay Rate ($/hr)</label><input placeholder="18.00" value={shiftForm.pay_rate} onChange={e=>setShiftForm({...shiftForm,pay_rate:e.target.value})}/></div>
             <div className="field"><label>Bill Rate ($/hr)</label><input placeholder="32.00" value={shiftForm.bill_rate} onChange={e=>setShiftForm({...shiftForm,bill_rate:e.target.value})}/></div>
           </div>
-          <div className="modal-actions"><button className="btn-cancel" onClick={()=>setShowAddShift(false)}>Cancel</button><button className="btn-save" onClick={addShift}>Schedule</button></div>
+          <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:8,padding:'12px 14px',marginBottom:13}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:isRecurring?12:0}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:'var(--text)',marginBottom:2}}>Repeat weekly</div>
+                <div style={{fontSize:11,color:'var(--text3)'}}>Create this shift on multiple days</div>
+              </div>
+              <button onClick={()=>setIsRecurring(!isRecurring)} style={{width:40,height:22,borderRadius:11,border:'none',cursor:'pointer',background:isRecurring?'var(--accent)':'rgba(255,255,255,0.1)',position:'relative',transition:'background 0.2s'}}>
+                <span style={{position:'absolute',top:2,left:isRecurring?20:2,width:18,height:18,borderRadius:'50%',background:'#fff',transition:'left 0.2s',display:'block'}}/>
+              </button>
+            </div>
+            {isRecurring&&<>
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'0.7px',marginBottom:8}}>Days of week</div>
+                <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                  {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((day,i)=>(
+                    <button key={i} onClick={()=>setRecurringDays(prev=>prev.includes(i)?prev.filter(d=>d!==i):[...prev,i].sort())}
+                      style={{padding:'6px 10px',borderRadius:6,border:'1px solid',fontSize:12,fontWeight:600,cursor:'pointer',fontFamily:'Plus Jakarta Sans, sans-serif',transition:'all 0.15s',background:recurringDays.includes(i)?'rgba(249,115,22,0.15)':'transparent',color:recurringDays.includes(i)?'var(--accent)':'var(--text3)',borderColor:recurringDays.includes(i)?'rgba(249,115,22,0.4)':'rgba(255,255,255,0.07)'}}>
+                      {day}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="field" style={{marginBottom:0}}>
+                <label>Repeat for</label>
+                <select value={recurringWeeks} onChange={e=>setRecurringWeeks(parseInt(e.target.value))}>
+                  <option value={1}>1 week</option>
+                  <option value={2}>2 weeks</option>
+                  <option value={4}>4 weeks</option>
+                  <option value={8}>8 weeks</option>
+                  <option value={12}>12 weeks</option>
+                </select>
+              </div>
+              {recurringDays.length>0&&<div style={{fontSize:11,color:'var(--text3)',marginTop:8}}>Will create {recurringDays.length*recurringWeeks} shifts total</div>}
+            </>}
+          </div>
+          <div className="modal-actions"><button className="btn-cancel" onClick={()=>setShowAddShift(false)}>Cancel</button><button className="btn-save" onClick={addShift}>{isRecurring&&recurringDays.length>0?`Schedule ${recurringDays.length*recurringWeeks} Shifts`:'Schedule'}</button></div>
         </div></div>}
 
         {showAddIncident&&<div className="modal-bg" onClick={e=>e.target===e.currentTarget&&setShowAddIncident(false)}><div className="modal">
