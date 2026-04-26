@@ -48,7 +48,6 @@ export default function Landing() {
         .nav.scrolled {
           background: rgba(8,11,18,0.92);
           backdrop-filter: blur(16px);
-          border-bottom: 1px solid rgba(255,255,255,0.06);
         }
         .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
         .nav-logo-text { font-size: 16px; font-weight: 800; color: #f1f5f9; letter-spacing: -0.4px; }
@@ -337,11 +336,6 @@ export default function Landing() {
         <div className="hero-bg">
           <div className="hero-glow" />
           <div className="hero-grid" />
-        </div>
-
-        <div className="hero-badge">
-          <div className="hero-badge-dot" />
-          Built for private security companies
         </div>
 
         <h1 className="hero-headline">
