@@ -99,54 +99,94 @@ export default function ClientPortal() {
           --text: #f1f5f9; --text2: #94a3b8; --text3: #475569;
           --accent: #f97316;
         }
+        .site-card {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 20px;
+        }
+        .site-stats {
+          display: flex;
+          gap: 24px;
+          flex-shrink: 0;
+        }
+        .stat-item {
+          text-align: right;
+        }
+        .table-scroll {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+        .tabs-row {
+          display: flex;
+          gap: 4px;
+          margin-bottom: 20px;
+          background: var(--bg3);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          padding: 4px;
+          width: fit-content;
+          max-width: 100%;
+          overflow-x: auto;
+        }
+        @media (max-width: 600px) {
+          .header-inner { padding: 0 16px !important; }
+          .main-content { padding: 20px 16px !important; }
+          .site-stats { gap: 16px; }
+          .stat-item { text-align: left; }
+          .modal-inner { width: calc(100vw - 32px) !important; padding: 20px !important; }
+        }
       `}</style>
 
       <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
         {/* Header */}
-        <div style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', padding: '0 40px', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect width="32" height="32" rx="8" fill="#0f172a"/>
-              <path d="M16 8 L6 14 L7.5 16 L16 11 Z" fill="#f97316" fillOpacity="0.2"/>
-              <path d="M16 8 L26 14 L24.5 16 L16 11 Z" fill="#f97316" fillOpacity="0.2"/>
-              <polygon points="16,3 11,8 21,8" fill="#f97316"/>
-              <rect x="11" y="8" width="10" height="6" rx="1" fill="#f97316"/>
-              <rect x="10" y="14" width="12" height="2" rx="1" fill="#f97316"/>
-              <path d="M13 16 L11.5 27 L20.5 27 L19 16 Z" fill="#f97316" fillOpacity="0.85"/>
-              <path d="M12.8 20 L12.5 23 L19.5 23 L19.2 20 Z" fill="#f97316"/>
-              <rect x="10" y="27" width="12" height="3" rx="1.5" fill="#f97316"/>
-              <path d="M14.5 27 L14.5 23.5 Q16 22 17.5 23.5 L17.5 27 Z" fill="#0f172a" fillOpacity="0.5"/>
-              <circle cx="16" cy="11" r="2" fill="#fef08a"/>
-            </svg>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.3px' }}>Watchpost</div>
-              <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '1px' }}>Client Portal</div>
+        <div style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', height: 64, display: 'flex', alignItems: 'center' }}>
+          <div className="header-inner" style={{ width: '100%', maxWidth: 1100, margin: '0 auto', padding: '0 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="32" height="32" rx="8" fill="#0f172a"/>
+                <path d="M16 8 L6 14 L7.5 16 L16 11 Z" fill="#f97316" fillOpacity="0.2"/>
+                <path d="M16 8 L26 14 L24.5 16 L16 11 Z" fill="#f97316" fillOpacity="0.2"/>
+                <polygon points="16,3 11,8 21,8" fill="#f97316"/>
+                <rect x="11" y="8" width="10" height="6" rx="1" fill="#f97316"/>
+                <rect x="10" y="14" width="12" height="2" rx="1" fill="#f97316"/>
+                <path d="M13 16 L11.5 27 L20.5 27 L19 16 Z" fill="#f97316" fillOpacity="0.85"/>
+                <path d="M12.8 20 L12.5 23 L19.5 23 L19.2 20 Z" fill="#f97316"/>
+                <rect x="10" y="27" width="12" height="3" rx="1.5" fill="#f97316"/>
+                <path d="M14.5 27 L14.5 23.5 Q16 22 17.5 23.5 L17.5 27 Z" fill="#0f172a" fillOpacity="0.5"/>
+                <circle cx="16" cy="11" r="2" fill="#fef08a"/>
+              </svg>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.3px' }}>Watchpost</div>
+                <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '1px' }}>Client Portal</div>
+              </div>
             </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ fontSize: 13, color: 'var(--text3)' }}>{client?.name}</div>
-            <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/client-login' }}
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: 'var(--text3)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-              Sign out
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <div style={{ fontSize: 13, color: 'var(--text3)' }}>{client?.name}</div>
+              <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/client-login' }}
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)', borderRadius: 7, padding: '6px 12px', fontSize: 12, color: 'var(--text3)', cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                Sign out
+              </button>
+            </div>
           </div>
         </div>
 
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 40px' }}>
+        <div className="main-content" style={{ maxWidth: 1100, margin: '0 auto', padding: '36px 40px' }}>
           {/* Site info */}
-          <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 14, padding: '24px 28px', marginBottom: 28, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div className="site-card" style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 14, padding: '24px 28px', marginBottom: 28 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: 6 }}>Your Site</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.5px' }}>{site?.name}</div>
               <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 4 }}>{site?.address || 'No address on file'}</div>
             </div>
-            <div style={{ display: 'flex', gap: 32 }}>
+            <div className="site-stats">
               {[
                 { label: 'Total Shifts', value: shifts.length },
                 { label: 'Open Incidents', value: incidents.filter(i => i.status === 'open').length },
                 { label: 'Reports', value: reports.length },
               ].map(s => (
-                <div key={s.label} style={{ textAlign: 'right' }}>
+                <div key={s.label} className="stat-item">
                   <div style={{ fontSize: 10, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.7px', marginBottom: 4 }}>{s.label}</div>
                   <div style={{ fontSize: 24, fontWeight: 800, color: s.label === 'Open Incidents' && s.value > 0 ? '#f97316' : 'var(--text)', fontFamily: 'JetBrains Mono, monospace', letterSpacing: '-1px' }}>{s.value}</div>
                 </div>
@@ -155,10 +195,10 @@ export default function ClientPortal() {
           </div>
 
           {/* Tabs */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
+          <div className="tabs-row">
             {tabs.map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                style={{ padding: '7px 16px', borderRadius: 7, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all 0.15s',
+                style={{ padding: '7px 16px', borderRadius: 7, border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif', transition: 'all 0.15s', whiteSpace: 'nowrap',
                   background: activeTab === tab.id ? 'var(--bg4)' : 'transparent',
                   color: activeTab === tab.id ? 'var(--text)' : 'var(--text3)' }}>
                 {tab.label}
@@ -169,91 +209,97 @@ export default function ClientPortal() {
           {/* SCHEDULE TAB */}
           {activeTab === 'schedule' && (
             <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
-                    {['Guard', 'Type', 'Start', 'End', 'Status'].map(h => (
-                      <th key={h} style={{ padding: '11px 20px', textAlign: 'left', fontSize: 10.5, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {shifts.length === 0 && (
-                    <tr><td colSpan={5} style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>No shifts scheduled</td></tr>
-                  )}
-                  {shifts.map(s => (
-                    <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '12px 20px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{s.guards?.name || '—'}</td>
-                      <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><span style={{ ...shiftPill[s.shift_type], padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{s.shift_type}</span></td>
-                      <td style={{ padding: '12px 20px', fontSize: 12, color: 'var(--text3)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>{fmtDateTime(s.start_time)}</td>
-                      <td style={{ padding: '12px 20px', fontSize: 12, color: 'var(--text3)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>{fmtDateTime(s.end_time)}</td>
-                      <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><span style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{s.status}</span></td>
+              <div className="table-scroll">
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 480 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+                      {['Guard', 'Type', 'Start', 'End', 'Status'].map(h => (
+                        <th key={h} style={{ padding: '11px 20px', textAlign: 'left', fontSize: 10.5, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {shifts.length === 0 && (
+                      <tr><td colSpan={5} style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>No shifts scheduled</td></tr>
+                    )}
+                    {shifts.map(s => (
+                      <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '12px 20px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{s.guards?.name || '—'}</td>
+                        <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><span style={{ ...shiftPill[s.shift_type], padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{s.shift_type}</span></td>
+                        <td style={{ padding: '12px 20px', fontSize: 12, color: 'var(--text3)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>{fmtDateTime(s.start_time)}</td>
+                        <td style={{ padding: '12px 20px', fontSize: 12, color: 'var(--text3)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>{fmtDateTime(s.end_time)}</td>
+                        <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><span style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{s.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {/* INCIDENTS TAB */}
           {activeTab === 'incidents' && (
             <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
-                    {['Title', 'Severity', 'Status', 'Date'].map(h => (
-                      <th key={h} style={{ padding: '11px 20px', textAlign: 'left', fontSize: 10.5, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {incidents.length === 0 && (
-                    <tr><td colSpan={4} style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>No incidents logged</td></tr>
-                  )}
-                  {incidents.map(i => (
-                    <tr key={i.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '12px 20px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{i.title}</td>
-                      <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><span style={{ ...sevPill[i.severity], padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{i.severity}</span></td>
-                      <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><span style={{ background: 'rgba(249,115,22,0.1)', color: '#f97316', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{i.status}</span></td>
-                      <td style={{ padding: '12px 20px', fontSize: 12, color: 'var(--text3)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>{fmtDate(i.created_at)}</td>
+              <div className="table-scroll">
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 380 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+                      {['Title', 'Severity', 'Status', 'Date'].map(h => (
+                        <th key={h} style={{ padding: '11px 20px', textAlign: 'left', fontSize: 10.5, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {incidents.length === 0 && (
+                      <tr><td colSpan={4} style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>No incidents logged</td></tr>
+                    )}
+                    {incidents.map(i => (
+                      <tr key={i.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '12px 20px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{i.title}</td>
+                        <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><span style={{ ...sevPill[i.severity], padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{i.severity}</span></td>
+                        <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}><span style={{ background: 'rgba(249,115,22,0.1)', color: '#f97316', padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{i.status}</span></td>
+                        <td style={{ padding: '12px 20px', fontSize: 12, color: 'var(--text3)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>{fmtDate(i.created_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {/* REPORTS TAB */}
           {activeTab === 'reports' && (
             <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
-                    {['Guard', 'Shift Date', 'Summary', 'Submitted', ''].map(h => (
-                      <th key={h} style={{ padding: '11px 20px', textAlign: 'left', fontSize: 10.5, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {reports.length === 0 && (
-                    <tr><td colSpan={5} style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>No activity reports yet</td></tr>
-                  )}
-                  {reports.map(r => (
-                    <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '12px 20px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{r.guards?.name || '—'}</td>
-                      <td style={{ padding: '12px 20px', fontSize: 12, color: 'var(--text3)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>{r.shifts ? fmtDate(r.shifts.start_time) : '—'}</td>
-                      <td style={{ padding: '12px 20px', maxWidth: 280 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, color: 'var(--text2)' }}>{r.summary}</div></td>
-                      <td style={{ padding: '12px 20px', fontSize: 12, color: 'var(--text3)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>{fmtDate(r.created_at)}</td>
-                      <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}>
-                        <button onClick={() => setViewingReport(r)}
-                          style={{ background: 'rgba(96,165,250,0.1)', color: '#60a5fa', border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                          View
-                        </button>
-                      </td>
+              <div className="table-scroll">
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+                      {['Guard', 'Shift Date', 'Summary', 'Submitted', ''].map(h => (
+                        <th key={h} style={{ padding: '11px 20px', textAlign: 'left', fontSize: 10.5, fontWeight: 600, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '0.7px', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {reports.length === 0 && (
+                      <tr><td colSpan={5} style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text3)', fontSize: 14 }}>No activity reports yet</td></tr>
+                    )}
+                    {reports.map(r => (
+                      <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '12px 20px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap' }}>{r.guards?.name || '—'}</td>
+                        <td style={{ padding: '12px 20px', fontSize: 12, color: 'var(--text3)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>{r.shifts ? fmtDate(r.shifts.start_time) : '—'}</td>
+                        <td style={{ padding: '12px 20px', maxWidth: 280 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13, color: 'var(--text2)' }}>{r.summary}</div></td>
+                        <td style={{ padding: '12px 20px', fontSize: 12, color: 'var(--text3)', fontFamily: 'JetBrains Mono, monospace', whiteSpace: 'nowrap' }}>{fmtDate(r.created_at)}</td>
+                        <td style={{ padding: '12px 20px', whiteSpace: 'nowrap' }}>
+                          <button onClick={() => setViewingReport(r)}
+                            style={{ background: 'rgba(96,165,250,0.1)', color: '#60a5fa', border: 'none', borderRadius: 5, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -261,9 +307,9 @@ export default function ClientPortal() {
 
       {/* VIEW REPORT MODAL */}
       {viewingReport && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '16px' }}
           onClick={e => e.target === e.currentTarget && setViewingReport(null)}>
-          <div style={{ background: 'var(--bg3)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: 28, width: 520, boxShadow: '0 24px 80px rgba(0,0,0,0.5)' }}>
+          <div className="modal-inner" style={{ background: 'var(--bg3)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: 28, width: 520, maxWidth: '100%', boxShadow: '0 24px 80px rgba(0,0,0,0.5)' }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>Activity Report</div>
             <div style={{ display: 'flex', gap: 20, marginBottom: 20, flexWrap: 'wrap' }}>
               {[['Guard', viewingReport.guards?.name], ['Submitted', new Date(viewingReport.created_at).toLocaleString()]].map(([l, v]) => (
